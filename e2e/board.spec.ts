@@ -23,14 +23,18 @@ test("shows the seeded Board in four Status columns", async ({ page }) => {
   );
 
   const card = board.getByRole("article", { name: "Fractional Rank for moves" });
-  await expect(card.getByRole("img", { name: "Priority: Urgent" })).toBeVisible();
+  await expect(card.getByRole("button", { name: "Priority: Urgent" })).toBeVisible();
   await expect(card.getByText("Backend")).toBeVisible();
   await expect(card.getByRole("img", { name: "Assignee: Leo Okafor" })).toBeVisible();
 
   const noPriority = board.getByRole("article", {
     name: "Light, Dark and System themes",
   });
-  await expect(noPriority.getByRole("img", { name: /^Priority/ })).toHaveCount(0);
+  // Priority None shows no glyph until the card is hovered, as in Jira.
+  const nonePriority = noPriority.getByRole("button", { name: "Priority: None" });
+  await expect(nonePriority.locator("svg")).toBeHidden();
+  await noPriority.hover();
+  await expect(nonePriority.locator("svg")).toBeVisible();
 });
 
 test("scrolls horizontally to every column below 640px", async ({ page }) => {

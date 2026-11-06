@@ -1,5 +1,16 @@
 import type { Database } from "@/lib/db/client";
-import { STATUSES, type Board, type Label, type TeamMember } from "./domain";
+import type { Guest } from "@/lib/guests/guests";
+import {
+  STATUSES,
+  type Board,
+  type Label,
+  type TeamMember,
+  type WriteResult,
+} from "./domain";
+import { setPriorityInput } from "./schemas";
+
+const invalidInput = { ok: false, error: "Invalid input." } as const;
+const taskGone = { ok: false, error: "This Task no longer exists." } as const;
 
 // Labels and Team Members are read with the same fields everywhere.
 const summary = { id: true, name: true, color: true } as const;
@@ -44,6 +55,21 @@ export function createBoard(db: Database) {
         orderBy: { position: "asc" },
         select: summary,
       });
+    },
+    /**
+     * Sets a Task's Priority to the final value given, never "cycle"
+     * (ADR-0004), so concurrent identical clicks are idempotent. Like every
+     * write, it takes the acting Guest, whom Activity will name (#12).
+     */
+    async setPriority(guest: Guest, input: unknown): Promise<WriteResult> {
+      const parsed = setPriorityInput.safeParse(input);
+      if (!parsed.success) return invalidInput;
+      const { taskId, priority } = parsed.data;
+      const { count } = await db.task.updateMany({
+        where: { id: taskId, archivedAt: null },
+        data: { priority },
+      });
+      return count === 1 ? { ok: true } : taskGone;
     },
   };
 }

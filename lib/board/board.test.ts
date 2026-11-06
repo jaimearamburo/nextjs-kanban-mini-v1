@@ -10,8 +10,8 @@ beforeEach(async () => {
   await wipeDatabase(testDb);
 });
 
-// Arrange-only fixtures: written straight to the database because the Board
-// module has no writes yet. Assertions go through the Board module only.
+// Arrange-only fixtures: written straight to the database, because the Board
+// module has no way to create Tasks yet. Assertions go through the Board module only.
 async function givenTask(task: {
   title: string;
   status?: Status;
@@ -163,5 +163,59 @@ describe("listTeamMembers", () => {
       "Sam Rivera",
       "Ava Moreau",
     ]);
+  });
+});
+
+/** The Priority the Board shows for a Task, or undefined if it's not on the Board. */
+async function shownPriority(taskId: string) {
+  const { statuses } = await board.getBoard();
+  return statuses.flatMap(({ tasks }) => tasks).find((task) => task.id === taskId)?.priority;
+}
+
+describe("setPriority", () => {
+  /** The Guest acting in each write. */
+  const givenGuest = () =>
+    testDb.guest.create({ data: { name: "Brave Fox", color: "violet" } });
+
+  test("saves the final value it is given", async () => {
+    const task = await givenTask({ title: "Triage me", rank: "a0", priority: "LOW" });
+    const guest = await givenGuest();
+
+    const result = await board.setPriority(guest, { taskId: task.id, priority: "URGENT" });
+
+    expect(result).toEqual({ ok: true });
+    expect(await shownPriority(task.id)).toBe("URGENT");
+  });
+
+  test("is idempotent: Guests clicking at the same moment never skip a level", async () => {
+    const task = await givenTask({ title: "Contested", rank: "a0", priority: "LOW" });
+    const guests = await Promise.all(Array.from({ length: 5 }, givenGuest));
+
+    // Five Guests all see Low and click once, so each sends "set Medium".
+    const results = await Promise.all(
+      guests.map((guest) => board.setPriority(guest, { taskId: task.id, priority: "MEDIUM" })),
+    );
+
+    expect(results).toEqual(Array(5).fill({ ok: true }));
+    expect(await shownPriority(task.id)).toBe("MEDIUM");
+  });
+
+  test("rejects a Priority outside the fixed set at the Zod boundary", async () => {
+    const task = await givenTask({ title: "Unchanged", rank: "a0", priority: "LOW" });
+    const guest = await givenGuest();
+
+    const result = await board.setPriority(guest, { taskId: task.id, priority: "CRITICAL" });
+
+    expect(result).toEqual({ ok: false, error: "Invalid input." });
+    expect(await shownPriority(task.id)).toBe("LOW");
+  });
+
+  test("refuses an Archived Task", async () => {
+    const task = await givenTask({ title: "Archived", rank: "a0", archived: true });
+    const guest = await givenGuest();
+
+    const result = await board.setPriority(guest, { taskId: task.id, priority: "HIGH" });
+
+    expect(result).toEqual({ ok: false, error: "This Task no longer exists." });
   });
 });
