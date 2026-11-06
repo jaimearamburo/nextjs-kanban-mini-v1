@@ -1,3 +1,4 @@
+import { instant } from "@next/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
 // Runs against a production build on the freshly seeded `test` database.
@@ -54,6 +55,41 @@ test("clicking a card opens the Task in a modal over the Board and changes the U
   ).toBeVisible();
 });
 
+test("the Task opens instantly from a card, with no wait on the server", async ({ page }) => {
+  await openBoard(page);
+
+  // Inside instant(), only what was prefetched can show: anything the click
+  // still had to fetch from the server stays blocked until the scope ends.
+  await instant(page, async () => {
+    await cardLink(page, TITLE).click();
+    await page.waitForURL(TASK_URL);
+    await expectSeededTask(page.getByRole("dialog", { name: TITLE }));
+  });
+});
+
+test("the Task opens as a side panel below the header, covering three quarters of the width", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await openBoard(page);
+  const header = await page.getByRole("banner").boundingBox();
+
+  await cardLink(page, TITLE).click();
+
+  const panel = page.getByRole("dialog", { name: TITLE });
+  await expect(panel).toBeVisible();
+  // Wait for the slide-in to finish before measuring.
+  await expect(async () => {
+    const box = (await panel.boundingBox())!;
+    expect(box.x + box.width).toBe(1280);
+    expect(box.width).toBe(960);
+    expect(box.y).toBe(header!.y + header!.height);
+    expect(box.y + box.height).toBe(800);
+  }).toPass();
+  // The panel scrolls on its own; the Board behind it doesn't move.
+  expect(await panel.evaluate((el) => getComputedStyle(el).overflowY)).toBe("auto");
+});
+
 test("loading or refreshing a Task URL shows the full Task page", async ({ page }) => {
   await openBoard(page);
   await cardLink(page, TITLE).click();
@@ -74,14 +110,16 @@ test("loading or refreshing a Task URL shows the full Task page", async ({ page 
 
 for (const [how, close] of [
   ["Esc", (page: Page) => page.keyboard.press("Escape")],
-  ["the backdrop", (page: Page) => page.mouse.click(5, 300)],
+  // The Board's uncovered left quarter, below the header.
+  ["the backdrop", (page: Page) => page.mouse.click(100, 400)],
   ["the back button", (page: Page) => page.goBack()],
 ] as const) {
   test(`closing with ${how} returns to the Board with its scroll position kept`, async ({
     page,
   }) => {
-    // Narrow enough that the Board scrolls horizontally to reach Done.
-    await page.setViewportSize({ width: 375, height: 800 });
+    // Narrow enough that the Board scrolls horizontally to reach Done, wide
+    // enough that the side panel leaves part of the Board uncovered.
+    await page.setViewportSize({ width: 900, height: 800 });
     await openBoard(page);
     const done = board(page).getByRole("region", { name: "Done" });
     const doneCard = done.getByRole("article").first();
