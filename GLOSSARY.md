@@ -35,7 +35,7 @@ _Avoid_: Deleted task
 ## People
 
 **Guest**:
-A visitor's anonymous identity, a generated creative name (e.g. "Guest Otter") with an avatar colour, remembered per browser. Guests perform all actions.
+A visitor's anonymous identity, a generated adjective + animal name (e.g. "Curious Otter") with an avatar colour, remembered per browser. Guests perform all actions.
 _Avoid_: User, account, member
 
 **Team Member**:
