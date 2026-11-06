@@ -12,10 +12,10 @@ export async function setTaskPriority(
   taskId: string,
   priority: Priority,
 ): Promise<WriteResult> {
-  await requireGuest();
+  const guest = await requireGuest();
   const demo = await runDemoControls();
   if (!demo.ok) return demo;
-  const result = await setPriority({ taskId, priority });
+  const result = await setPriority(guest, { taskId, priority });
   if (result.ok) {
     updateTag(cacheTags.board);
     updateTag(cacheTags.task(taskId));

@@ -173,10 +173,15 @@ async function shownPriority(taskId: string) {
 }
 
 describe("setPriority", () => {
+  /** The Guest acting in each write. */
+  const givenGuest = () =>
+    testDb.guest.create({ data: { name: "Brave Fox", color: "violet" } });
+
   test("saves the final value it is given", async () => {
     const task = await givenTask({ title: "Triage me", rank: "a0", priority: "LOW" });
+    const guest = await givenGuest();
 
-    const result = await board.setPriority({ taskId: task.id, priority: "URGENT" });
+    const result = await board.setPriority(guest, { taskId: task.id, priority: "URGENT" });
 
     expect(result).toEqual({ ok: true });
     expect(await shownPriority(task.id)).toBe("URGENT");
@@ -184,10 +189,11 @@ describe("setPriority", () => {
 
   test("is idempotent: Guests clicking at the same moment never skip a level", async () => {
     const task = await givenTask({ title: "Contested", rank: "a0", priority: "LOW" });
+    const guests = await Promise.all(Array.from({ length: 5 }, givenGuest));
 
     // Five Guests all see Low and click once, so each sends "set Medium".
     const results = await Promise.all(
-      Array.from({ length: 5 }, () => board.setPriority({ taskId: task.id, priority: "MEDIUM" })),
+      guests.map((guest) => board.setPriority(guest, { taskId: task.id, priority: "MEDIUM" })),
     );
 
     expect(results).toEqual(Array(5).fill({ ok: true }));
@@ -196,8 +202,9 @@ describe("setPriority", () => {
 
   test("rejects a Priority outside the fixed set at the Zod boundary", async () => {
     const task = await givenTask({ title: "Unchanged", rank: "a0", priority: "LOW" });
+    const guest = await givenGuest();
 
-    const result = await board.setPriority({ taskId: task.id, priority: "CRITICAL" });
+    const result = await board.setPriority(guest, { taskId: task.id, priority: "CRITICAL" });
 
     expect(result).toEqual({ ok: false, error: "Invalid input." });
     expect(await shownPriority(task.id)).toBe("LOW");
@@ -205,8 +212,9 @@ describe("setPriority", () => {
 
   test("refuses an Archived Task", async () => {
     const task = await givenTask({ title: "Archived", rank: "a0", archived: true });
+    const guest = await givenGuest();
 
-    const result = await board.setPriority({ taskId: task.id, priority: "HIGH" });
+    const result = await board.setPriority(guest, { taskId: task.id, priority: "HIGH" });
 
     expect(result).toEqual({ ok: false, error: "This Task no longer exists." });
   });

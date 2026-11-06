@@ -1,4 +1,5 @@
 import type { Database } from "@/lib/db/client";
+import type { Guest } from "@/lib/guests/guests";
 import {
   STATUSES,
   type Board,
@@ -57,9 +58,10 @@ export function createBoard(db: Database) {
     },
     /**
      * Sets a Task's Priority to the final value given, never "cycle"
-     * (ADR-0004), so concurrent identical clicks are idempotent.
+     * (ADR-0004), so concurrent identical clicks are idempotent. Like every
+     * write, it takes the acting Guest, whom Activity will name (#12).
      */
-    async setPriority(input: unknown): Promise<WriteResult> {
+    async setPriority(guest: Guest, input: unknown): Promise<WriteResult> {
       const parsed = setPriorityInput.safeParse(input);
       if (!parsed.success) return invalidInput;
       const { taskId, priority } = parsed.data;
