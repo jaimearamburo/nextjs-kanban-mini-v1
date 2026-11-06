@@ -4,16 +4,27 @@ import {
   STATUSES,
   type Board,
   type Label,
+  type TaskDetail,
   type TeamMember,
   type WriteResult,
 } from "./domain";
-import { setPriorityInput } from "./schemas";
+import { setPriorityInput, taskId } from "./schemas";
 
 const invalidInput = { ok: false, error: "Invalid input." } as const;
 const taskGone = { ok: false, error: "This Task no longer exists." } as const;
 
 // Labels and Team Members are read with the same fields everywhere.
 const summary = { id: true, name: true, color: true } as const;
+
+// A Task's fields as its card shows them (BoardTask).
+const boardTask = {
+  id: true,
+  title: true,
+  status: true,
+  priority: true,
+  labels: { orderBy: { position: "asc" }, select: summary },
+  assignee: { select: summary },
+} as const;
 
 /**
  * The Board module: every business rule for the one shared Board lives here.
@@ -25,17 +36,7 @@ export function createBoard(db: Database) {
       const tasks = await db.task.findMany({
         where: { archivedAt: null },
         orderBy: [{ rank: "asc" }, { id: "asc" }],
-        select: {
-          id: true,
-          title: true,
-          status: true,
-          priority: true,
-          labels: {
-            orderBy: { position: "asc" },
-            select: summary,
-          },
-          assignee: { select: summary },
-        },
+        select: boardTask,
       });
       return {
         statuses: STATUSES.map((status) => ({
@@ -43,6 +44,15 @@ export function createBoard(db: Database) {
           tasks: tasks.filter((task) => task.status === status),
         })),
       };
+    },
+    /** A Task's detail, or null for an unknown, malformed or Archived id. */
+    async getTask(id: unknown): Promise<TaskDetail | null> {
+      const parsed = taskId.safeParse(id);
+      if (!parsed.success) return null;
+      return db.task.findFirst({
+        where: { id: parsed.data, archivedAt: null },
+        select: { ...boardTask, description: true },
+      });
     },
     async listLabels(): Promise<Label[]> {
       return db.label.findMany({

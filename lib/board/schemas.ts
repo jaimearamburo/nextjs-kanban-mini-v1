@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { PRIORITIES } from "./domain";
 
-// Shared Zod schemas for every Board write. The Board module parses with
-// them at its boundary; the client can reuse them for form errors.
+// Shared Zod schemas for every Board input, reads and writes alike. The Board
+// module parses with them at its boundary; the client can reuse them for form errors.
 
 export const taskId = z.uuid();
 

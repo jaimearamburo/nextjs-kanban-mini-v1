@@ -58,6 +58,9 @@ export type BoardTask = {
   assignee: TeamMember | null;
 };
 
+/** A Task as its detail view shows it. */
+export type TaskDetail = BoardTask & { description: string };
+
 /** One Status and its Tasks in Rank order. */
 export type StatusTasks = { status: Status; tasks: BoardTask[] };
 

@@ -128,6 +128,55 @@ describe("getBoard", () => {
   });
 });
 
+describe("getTask", () => {
+  test("shows the Task's title, description, Status, Priority, Assignee and Labels in Label order", async () => {
+    await testDb.label.createMany({
+      data: [
+        { id: "docs", name: "Docs", color: "amber", position: 1 },
+        { id: "bug", name: "Bug", color: "red", position: 0 },
+      ],
+    });
+    const maya = await testDb.teamMember.create({
+      data: { name: "Maya Chen", color: "violet", position: 0 },
+    });
+    const task = await testDb.task.create({
+      data: {
+        title: "Fix the modal",
+        description: "It doesn't close on back.",
+        status: "IN_REVIEW",
+        rank: "a0",
+        priority: "HIGH",
+        assigneeId: maya.id,
+        labels: { connect: [{ id: "docs" }, { id: "bug" }] },
+      },
+    });
+
+    expect(await board.getTask(task.id)).toEqual({
+      id: task.id,
+      title: "Fix the modal",
+      description: "It doesn't close on back.",
+      status: "IN_REVIEW",
+      priority: "HIGH",
+      labels: [
+        { id: "bug", name: "Bug", color: "red" },
+        { id: "docs", name: "Docs", color: "amber" },
+      ],
+      assignee: { id: maya.id, name: "Maya Chen", color: "violet" },
+    });
+  });
+
+  test("doesn't find an Archived Task", async () => {
+    const task = await givenTask({ title: "Archived", rank: "a0", archived: true });
+
+    expect(await board.getTask(task.id)).toBeNull();
+  });
+
+  test("doesn't find an unknown or malformed Task id", async () => {
+    expect(await board.getTask("00000000-0000-7000-8000-000000000001")).toBeNull();
+    expect(await board.getTask("not-a-task")).toBeNull();
+  });
+});
+
 describe("listLabels", () => {
   test("lists every Label in its fixed order", async () => {
     await testDb.label.createMany({

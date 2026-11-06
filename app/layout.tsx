@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     "A real-time, login-free kanban Board built with Next.js and React.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children, modal }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
@@ -27,6 +27,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="flex min-h-full flex-col">
         {children}
+        {modal}
         <Toaster position="bottom-right" />
       </body>
     </html>
