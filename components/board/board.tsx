@@ -1,9 +1,15 @@
+import { connection } from "next/server";
 import { getBoard } from "@/lib/board";
 import { BoardColumn } from "./board-column";
 import { BoardLayout } from "./board-layout";
 import { TaskCard } from "./task-card";
 
 export async function Board() {
+  // Rendered per request from the cached Board read, not baked into the
+  // prerendered shell. A shell prerender keeps its own copy of the Board that
+  // updateTag doesn't reliably expire, so a reload right after a write could
+  // show the old Board.
+  await connection();
   const board = await getBoard();
   return (
     <BoardLayout aria-label="Board" role="region">

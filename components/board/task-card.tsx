@@ -1,7 +1,8 @@
+import { setTaskPriority } from "@/lib/board/actions";
 import type { BoardTask } from "@/lib/board/domain";
 import { AssigneeAvatar } from "./assignee-avatar";
 import { LabelBadge } from "./label-badge";
-import { PriorityIcon } from "./priority-icon";
+import { PriorityButton } from "./priority-button";
 
 export function TaskCard({ task }: { task: BoardTask }) {
   return (
@@ -21,7 +22,10 @@ export function TaskCard({ task }: { task: BoardTask }) {
           ))}
         </ul>
         <div className="flex shrink-0 items-center gap-1.5">
-          <PriorityIcon priority={task.priority} />
+          <PriorityButton
+            priority={task.priority}
+            changeAction={setTaskPriority.bind(null, task.id)}
+          />
           <AssigneeAvatar assignee={task.assignee} />
         </div>
       </div>

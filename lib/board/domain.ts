@@ -17,7 +17,24 @@ export const STATUS_NAMES: Record<Status, string> = {
   DONE: "Done",
 };
 
-/** Display names, in display order. */
+/** Every Priority, in display and cycle order. */
+export const PRIORITIES = [
+  "NONE",
+  "LOW",
+  "MEDIUM",
+  "HIGH",
+  "URGENT",
+] as const satisfies readonly Priority[];
+
+/**
+ * The Priority a click on the card's icon moves to. The client sends the
+ * result as the final value, never "cycle" (ADR-0004).
+ */
+export function nextPriority(priority: Priority): Priority {
+  return PRIORITIES[(PRIORITIES.indexOf(priority) + 1) % PRIORITIES.length];
+}
+
+/** Display names. */
 export const PRIORITY_NAMES: Record<Priority, string> = {
   NONE: "None",
   LOW: "Low",
@@ -45,3 +62,9 @@ export type StatusTasks = { status: Status; tasks: BoardTask[] };
 
 /** Every Status in workflow order, each with its Tasks in Rank order. */
 export type Board = { statuses: StatusTasks[] };
+
+/**
+ * What every Board write returns. Expected failures (invalid input, a Task
+ * that's gone) come back as `ok: false` and drive the rollback and toast.
+ */
+export type WriteResult = { ok: true } | { ok: false; error: string };

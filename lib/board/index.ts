@@ -37,3 +37,6 @@ export async function listTeamMembers() {
   cacheLife("max");
   return board.listTeamMembers();
 }
+
+/** Sets a Task's Priority. Server Actions call this, then update the cache tags. */
+export const setPriority = board.setPriority;
