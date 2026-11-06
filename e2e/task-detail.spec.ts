@@ -110,6 +110,12 @@ for (const { width, layout } of [
       if (layout === "beside the Task") {
         expect(a.x).toBeGreaterThanOrEqual(c.x + c.width);
         expect(a.y).toBeLessThan(c.y);
+        // Its divider runs the panel's full height, from just under the
+        // header to the bottom edge.
+        const p = (await panel.boundingBox())!;
+        const column = (await activity.locator("..").boundingBox())!;
+        expect(column.y).toBe(p.y);
+        expect(column.y + column.height).toBe(p.y + p.height);
       } else {
         expect(a.x).toBe(c.x);
         expect(a.y).toBeGreaterThanOrEqual(c.y + c.height);

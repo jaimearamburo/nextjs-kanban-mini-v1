@@ -7,7 +7,7 @@ import { TaskModal } from "@/components/task/task-modal";
 export default function TaskModalPage({ params }: PageProps<"/tasks/[id]">) {
   return (
     <TaskModal>
-      <Suspense fallback={<TaskDetailSkeleton />}>
+      <Suspense fallback={<TaskDetailSkeleton view="modal" />}>
         {params.then(({ id }) => (
           <TaskDetail id={id} view="modal" />
         ))}
