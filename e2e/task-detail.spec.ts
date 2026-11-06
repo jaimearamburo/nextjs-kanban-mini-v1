@@ -90,6 +90,34 @@ test("the Task opens as a side panel below the header, covering three quarters o
   expect(await panel.evaluate((el) => getComputedStyle(el).overflowY)).toBe("auto");
 });
 
+for (const { width, layout } of [
+  { width: 1600, layout: "beside the Task" },
+  { width: 900, layout: "under Comments" },
+] as const) {
+  test(`at ${width}px wide, Activity shows ${layout}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await openBoard(page);
+
+    await cardLink(page, TITLE).click();
+
+    const panel = page.getByRole("dialog", { name: TITLE });
+    const comments = panel.getByRole("region", { name: "Comments" });
+    const activity = panel.getByRole("region", { name: "Activity" });
+    await expect(activity).toBeVisible();
+    await expect(async () => {
+      const c = (await comments.boundingBox())!;
+      const a = (await activity.boundingBox())!;
+      if (layout === "beside the Task") {
+        expect(a.x).toBeGreaterThanOrEqual(c.x + c.width);
+        expect(a.y).toBeLessThan(c.y);
+      } else {
+        expect(a.x).toBe(c.x);
+        expect(a.y).toBeGreaterThanOrEqual(c.y + c.height);
+      }
+    }).toPass();
+  });
+}
+
 test("loading or refreshing a Task URL shows the full Task page", async ({ page }) => {
   await openBoard(page);
   await cardLink(page, TITLE).click();
