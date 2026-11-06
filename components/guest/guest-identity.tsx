@@ -1,7 +1,6 @@
 "use client";
 
 import { useFormStatus } from "react-dom";
-import { Dices } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Guest } from "@/lib/guests";
 import { rerollGuest } from "@/lib/guests/actions";
@@ -36,7 +35,12 @@ function RerollButton() {
       title="New identity"
       disabled={pending}
     >
-      <Dices className={cn(pending && "animate-spin")} aria-hidden />
+      <span
+        aria-hidden
+        className={cn("text-lg leading-none", pending && "animate-spin")}
+      >
+        🎲
+      </span>
     </Button>
   );
 }
