@@ -54,7 +54,7 @@ describe("ensureGuest", () => {
 });
 
 describe("createGuest", () => {
-  test("re-rolling gives a new Guest and keeps the old one, so its past actions stay attributed", async () => {
+  test("gives a new Guest and leaves existing Guests untouched", async () => {
     const { guest: before } = await guests.ensureGuest(undefined);
 
     const after = await guests.createGuest();
@@ -76,8 +76,13 @@ describe("createGuest", () => {
 });
 
 describe("rerollGuest", () => {
-  test("gives a new Guest with a different name from the current one", async () => {
-    // The first two draws repeat "Curious Otter"; the redraw must move on.
+  // Arrange-only fixtures: the Guests module has no Comment or Activity writes.
+  async function givenTask() {
+    return testDb.task.create({ data: { title: "A Task", rank: "a0" } });
+  }
+
+  test("renames a Guest with nothing attributed to it in place, so mashing re-roll adds no rows", async () => {
+    // The first draws repeat "Curious Otter"; the redraw must move on.
     const draws = [0, 0, 0, 0, 0, 0, 0.5, 0.5, 0.5];
     let i = 0;
     const rigged = createGuests(testDb, { random: () => draws[i++] ?? 0.5 });
@@ -86,9 +91,36 @@ describe("rerollGuest", () => {
     const next = await rigged.rerollGuest(current.id);
 
     expect(current.name).toBe("Curious Otter");
+    expect(next.id).toBe(current.id);
     expect(next.name).not.toBe("Curious Otter");
+    expect(await rigged.findGuest(current.id)).toEqual(next);
+  });
+
+  test("keeps a Guest who has written a Comment, and gives a new Guest", async () => {
+    const current = await guests.createGuest();
+    const task = await givenTask();
+    await testDb.comment.create({
+      data: { taskId: task.id, body: "Hi", authorGuestId: current.id },
+    });
+
+    const next = await guests.rerollGuest(current.id);
+
     expect(next.id).not.toBe(current.id);
-    expect(await rigged.findGuest(current.id)).toEqual(current);
+    expect(next.name).not.toBe(current.name);
+    expect(await guests.findGuest(current.id)).toEqual(current);
+  });
+
+  test("keeps a Guest with Activity, and gives a new Guest", async () => {
+    const current = await guests.createGuest();
+    const task = await givenTask();
+    await testDb.activity.create({
+      data: { taskId: task.id, guestId: current.id, kind: "TASK_CREATED" },
+    });
+
+    const next = await guests.rerollGuest(current.id);
+
+    expect(next.id).not.toBe(current.id);
+    expect(await guests.findGuest(current.id)).toEqual(current);
   });
 
   test("works without a current Guest", async () => {

@@ -32,7 +32,10 @@ export async function requireGuest(): Promise<Guest> {
   return guest;
 }
 
-/** Replaces the visitor's Guest with one of a different name. Server Actions only. */
+/**
+ * "New identity" for the visitor: a different name, renaming their Guest in
+ * place if nothing is attributed to it yet. Server Actions only.
+ */
 export async function rerollCurrentGuest(): Promise<void> {
   const store = await cookies();
   await rememberGuest(await guests.rerollGuest(store.get(GUEST_COOKIE)?.value));

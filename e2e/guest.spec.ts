@@ -30,16 +30,19 @@ test("a first visit gets a Guest, and a return visit keeps it", async ({ page, c
   expect(await guestCookie(context)).toBe(id);
 });
 
-test("re-rolling issues a new Guest", async ({ page, context }) => {
+test("re-rolling gives the Guest a new name", async ({ page, context }) => {
   await page.goto("/");
-  await shownGuestName(page);
-  const before = await guestCookie(context);
+  const before = await shownGuestName(page);
 
   await page.getByRole("button", { name: "New identity" }).click();
 
-  await expect.poll(() => guestCookie(context)).not.toBe(before);
+  await expect(page.getByRole("group", { name: /^You are / })).not.toHaveAccessibleName(
+    `You are ${before}`,
+  );
+  expect(await shownGuestName(page)).not.toBe(before);
   expect(await guestCookie(context)).toMatch(UUID);
-  await shownGuestName(page);
+  await page.reload();
+  expect(await shownGuestName(page)).not.toBe(before);
 });
 
 test("a malformed cookie is replaced with a new Guest without an error", async ({
