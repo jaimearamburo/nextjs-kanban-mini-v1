@@ -18,7 +18,7 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   // A production build against the disposable `test` database, freshly seeded.
   webServer: {
-    command: `tsx scripts/seed.ts --test --yes && next build && next start -p ${port}`,
+    command: `tsx scripts/seed.ts --test --yes && EXPOSE_TESTING_API=1 next build && next start -p ${port}`,
     url: `http://localhost:${port}`,
     reuseExistingServer: !process.env.CI,
     timeout: 300_000,

@@ -24,6 +24,17 @@ export async function getBoard() {
   return result;
 }
 
+/**
+ * A Task's detail, or null if the id is unknown, malformed or Archived.
+ * Cached until a write invalidates the Task's tag.
+ */
+export async function getTask(id: string) {
+  "use cache";
+  cacheLife("hours");
+  cacheTag(cacheTags.task(id));
+  return board.getTask(id);
+}
+
 /** Labels are seed data and never change, so they get the longest lifetime. */
 export async function listLabels() {
   "use cache";
