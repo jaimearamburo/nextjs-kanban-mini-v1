@@ -3,14 +3,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import type { TeamMember } from "@/lib/board/domain";
 import { cn } from "@/lib/utils";
 import { avatarColorClass } from "./colors";
-
-function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
-}
+import { initials } from "./initials";
 
 export function AssigneeAvatar({ assignee }: { assignee: TeamMember | null }) {
   const label = assignee ? `Assignee: ${assignee.name}` : "Unassigned";

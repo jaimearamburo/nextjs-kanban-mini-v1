@@ -1,6 +1,8 @@
 import { Suspense } from "react";
 import { Board } from "@/components/board/board";
 import { BoardSkeleton } from "@/components/board/board-skeleton";
+import { CurrentGuest } from "@/components/guest/current-guest";
+import { GuestSkeleton } from "@/components/guest/guest-skeleton";
 
 export default function BoardPage() {
   return (
@@ -13,6 +15,11 @@ export default function BoardPage() {
           KM
         </div>
         <p className="text-sm font-semibold">Kanban Mini</p>
+        <div className="ml-auto">
+          <Suspense fallback={<GuestSkeleton />}>
+            <CurrentGuest />
+          </Suspense>
+        </div>
       </header>
       <main className="flex flex-1 flex-col">
         <div className="px-4 pt-5 pb-4 sm:px-6">

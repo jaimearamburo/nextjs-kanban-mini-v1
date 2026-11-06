@@ -21,6 +21,12 @@ const avatarColors: Record<string, string> = {
   sky: "bg-sky-600 text-white",
   orange: "bg-orange-600 text-white",
   teal: "bg-teal-600 text-white",
+  indigo: "bg-indigo-600 text-white",
+  pink: "bg-pink-700 text-white",
+  amber: "bg-amber-700 text-white",
+  lime: "bg-lime-700 text-white",
+  cyan: "bg-cyan-700 text-white",
+  fuchsia: "bg-fuchsia-600 text-white",
 };
 
 export function labelColorClass(color: string): string {
