@@ -1,4 +1,5 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
+import { setDemoControls } from "./demo-controls";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -58,4 +59,22 @@ test("a malformed cookie is replaced with a new Guest without an error", async (
   await expect(page.getByText("Something went wrong")).toHaveCount(0);
   await expect(page.getByRole("region", { name: "Board" })).toBeVisible();
   expect(await guestCookie(context)).toMatch(UUID);
+});
+
+test("with 1s latency and Always fail, re-rolling keeps the name and shows a toast", async ({
+  page,
+  context,
+}) => {
+  await page.goto("/");
+  const before = await shownGuestName(page);
+  await setDemoControls(page, context, { latency: "1s", failure: "Always" });
+
+  await page.getByRole("button", { name: "New identity" }).click();
+
+  await expect(page.getByRole("button", { name: "New identity" })).toBeDisabled();
+  await expect(page.getByText("Couldn't get a new identity")).toBeVisible();
+  await expect(page.getByText("Simulated failure (demo controls).")).toBeVisible();
+  expect(await shownGuestName(page)).toBe(before);
+  await page.reload();
+  expect(await shownGuestName(page)).toBe(before);
 });

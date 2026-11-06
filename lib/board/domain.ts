@@ -1,3 +1,4 @@
+import type { ActionResult } from "@/lib/action-result";
 import type { Priority, Status } from "@/lib/generated/prisma/enums";
 
 export type { Priority, Status };
@@ -63,8 +64,5 @@ export type StatusTasks = { status: Status; tasks: BoardTask[] };
 /** Every Status in workflow order, each with its Tasks in Rank order. */
 export type Board = { statuses: StatusTasks[] };
 
-/**
- * What every Board write returns. Expected failures (invalid input, a Task
- * that's gone) come back as `ok: false` and drive the rollback and toast.
- */
-export type WriteResult = { ok: true } | { ok: false; error: string };
+/** What every Board write returns. */
+export type WriteResult = ActionResult;

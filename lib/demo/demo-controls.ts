@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { ActionResult } from "@/lib/action-result";
 
 // Demo controls: per-browser artificial latency and failure injection, so a
 // viewer can watch optimistic updates, pending states and rollbacks happen.
@@ -54,7 +55,7 @@ const realSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(reso
 export async function applyDemoControls(
   settings: DemoSettings,
   { sleep = realSleep, random = Math.random }: Clock = {},
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<ActionResult> {
   const ms = LATENCY_MS[settings.latency];
   if (ms > 0) await sleep(ms);
   if (random() < FAILURE_RATE[settings.failure]) {

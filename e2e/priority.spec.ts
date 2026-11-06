@@ -1,4 +1,5 @@
-import { expect, test, type BrowserContext, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
+import { setDemoControls } from "./demo-controls";
 
 // Tests run in parallel on one seeded database and may run more than once on
 // a reused server, so each test owns its own Task and works from the Priority
@@ -31,28 +32,6 @@ async function shownPriority(card: Locator) {
 /** The Priority `clicks` steps after `from` in the cycle. */
 function after(from: string, clicks: number) {
   return CYCLE[(CYCLE.indexOf(from) + clicks) % CYCLE.length];
-}
-
-async function setDemoControls(
-  page: Page,
-  context: BrowserContext,
-  { latency, failure }: { latency: string; failure: string },
-) {
-  await page.getByRole("button", { name: /^Demo controls/ }).click();
-  const dialog = page.getByRole("dialog", { name: "Demo controls" });
-  await dialog.getByRole("radiogroup", { name: "Latency" }).getByRole("radio", { name: latency }).click();
-  await dialog.getByRole("radiogroup", { name: "Failures" }).getByRole("radio", { name: failure }).click();
-  // Wait until the settings are saved before reloading or clicking on.
-  await expect
-    .poll(async () => {
-      const cookie = (await context.cookies()).find((c) => c.name === "demo-controls");
-      return cookie && JSON.parse(decodeURIComponent(cookie.value));
-    })
-    .toEqual({
-      latency: { Off: "off", "1s": "1s", "3s": "3s" }[latency],
-      failure: { Off: "off", "30% random": "random", Always: "always" }[failure],
-    });
-  await page.keyboard.press("Escape");
 }
 
 test("clicking Priority updates instantly and the saved value survives a reload", async ({
