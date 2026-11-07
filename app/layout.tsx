@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
+import { BoardSync } from "@/components/realtime/board-sync";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
@@ -29,6 +31,10 @@ export default function RootLayout({ children, modal }: LayoutProps<"/">) {
         {children}
         {modal}
         <Toaster position="bottom-right" />
+        {/* Changes by other Guests appear live, on the Board and in Task detail. */}
+        <Suspense>
+          <BoardSync />
+        </Suspense>
       </body>
     </html>
   );

@@ -24,6 +24,7 @@
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",
     "@vercel/functions": "^3.10.6",
+    "ably": "^2.30.0",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.2",
     "fractional-indexing": "^4.0.0",

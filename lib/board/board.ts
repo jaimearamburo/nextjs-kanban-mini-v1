@@ -4,12 +4,14 @@ import type { Guest } from "@/lib/guests/guests";
 import {
   STATUSES,
   type Board,
+  type BoardChange,
   type Label,
+  type PublishChange,
   type TaskDetail,
   type TeamMember,
   type WriteResult,
 } from "./domain";
-import { boardFilter, moveTaskInput, setPriorityInput, taskId } from "./schemas";
+import { boardFilter, moveTaskInput, origin as originSchema, setPriorityInput, taskId } from "./schemas";
 
 /**
  * Escapes LIKE wildcards, so search finds `%` and `_` as typed. Prisma's
@@ -21,6 +23,15 @@ function escapeLike(text: string) {
 
 const invalidInput = { ok: false, error: "Invalid input." } as const;
 const taskGone = { ok: false, error: "This Task no longer exists." } as const;
+/**
+ * A drop whose neighbours no longer match the Board: usually another Guest
+ * moved one mid-drag. Refused, never guessed: a move lands exactly where its
+ * line showed, or not at all.
+ */
+const boardChanged = {
+  ok: false,
+  error: "The Board changed while you were dragging. Try again.",
+} as const;
 
 // Labels and Team Members are read with the same fields everywhere.
 const summary = { id: true, name: true, color: true } as const;
@@ -45,19 +56,33 @@ function compareBoardOrder(a: { id: string; rank: string }, b: { id: string; ran
 }
 
 /**
- * The Board module: every business rule for the one shared Board lives here.
- * Its only dependency is the database.
- */
-/**
  * How many evenly spaced Ranks a drop picks from at random, so drops into
  * the same gap at the same moment rarely tie (1 in this many).
  */
 const RANK_CHOICES = 16;
 
+/**
+ * The Board module: every business rule for the one shared Board lives here.
+ * Its dependencies are the database and the "publish change" port: after
+ * every successful write commits, it publishes exactly one change event;
+ * a failed write publishes nothing (ADR-0005).
+ */
 export function createBoard(
   db: Database,
-  { random = Math.random }: { random?: () => number } = {},
+  {
+    publishChange,
+    random = Math.random,
+  }: { publishChange: PublishChange; random?: () => number },
 ) {
+  async function published(
+    guest: Guest,
+    origin: unknown,
+    change: Pick<BoardChange, "taskId" | "field">,
+  ): Promise<WriteResult> {
+    await publishChange({ ...change, guestId: guest.id, origin: originSchema.parse(origin) });
+    return { ok: true };
+  }
+
   return {
     /**
      * The Board, narrowed by its search params: a Task is shown if it has any
@@ -124,9 +149,10 @@ export function createBoard(
     /**
      * Sets a Task's Priority to the final value given, never "cycle"
      * (ADR-0004), so concurrent identical clicks are idempotent. Like every
-     * write, it takes the acting Guest, whom Activity will name (#12).
+     * write, it takes the acting Guest, whom Activity will name (#12), and
+     * the tab it came from (`origin`), which its change event carries.
      */
-    async setPriority(guest: Guest, input: unknown): Promise<WriteResult> {
+    async setPriority(guest: Guest, input: unknown, origin?: unknown): Promise<WriteResult> {
       const parsed = setPriorityInput.safeParse(input);
       if (!parsed.success) return invalidInput;
       const { taskId, priority } = parsed.data;
@@ -134,7 +160,8 @@ export function createBoard(
         where: { id: taskId, archivedAt: null },
         data: { priority },
       });
-      return count === 1 ? { ok: true } : taskGone;
+      if (count !== 1) return taskGone;
+      return published(guest, origin, { taskId, field: "priority" });
     },
     /**
      * Moves a Task to a Status, between the two cards it was dropped
@@ -142,21 +169,27 @@ export function createBoard(
      * between its neighbours' (ADR-0001). A Status change will record
      * Activity once Activity lands (#12); a reorder within a Status won't.
      */
-    async moveTask(guest: Guest, input: unknown): Promise<WriteResult> {
+    async moveTask(guest: Guest, input: unknown, origin?: unknown): Promise<WriteResult> {
       const parsed = moveTaskInput.safeParse(input);
       if (!parsed.success) return invalidInput;
       const { taskId, status, beforeId, afterId } = parsed.data;
+      // Read first, so the event can say whether the Status changed.
+      const moving = await db.task.findFirst({
+        where: { id: taskId, archivedAt: null },
+        select: { status: true },
+      });
+      if (!moving) return taskGone;
       const neighbourIds = [beforeId, afterId].filter((id) => id !== null);
-      if (neighbourIds.includes(taskId)) return invalidInput;
+      if (neighbourIds.includes(taskId)) return boardChanged;
       // A neighbour must be on the Board in the target Status.
       const neighbours = await db.task.findMany({
         where: { id: { in: neighbourIds }, status, archivedAt: null },
         select: { id: true, rank: true },
       });
-      if (neighbours.length !== neighbourIds.length) return invalidInput;
+      if (neighbours.length !== neighbourIds.length) return boardChanged;
       const before = neighbours.find((task) => task.id === beforeId) ?? null;
       const after = neighbours.find((task) => task.id === afterId) ?? null;
-      if (before && after && compareBoardOrder(before, after) >= 0) return invalidInput;
+      if (before && after && compareBoardOrder(before, after) >= 0) return boardChanged;
       // A random pick among several Ranks in the gap, so concurrent drops
       // into it rarely tie. Neighbours that did tie leave no Rank strictly
       // between them, so the Task shares theirs and its id places it within
@@ -171,7 +204,11 @@ export function createBoard(
         where: { id: taskId, archivedAt: null },
         data: { status, rank },
       });
-      return count === 1 ? { ok: true } : taskGone;
+      if (count !== 1) return taskGone;
+      return published(guest, origin, {
+        taskId,
+        field: moving.status === status ? "rank" : "status",
+      });
     },
   };
 }
