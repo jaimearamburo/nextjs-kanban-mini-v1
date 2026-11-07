@@ -15,7 +15,20 @@ export default defineConfig({
     baseURL: `http://localhost:${port}`,
     trace: "on-first-retry",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    {
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
+      testIgnore: /drag-and-drop\.spec\.ts/,
+    },
+    // Moves rearrange the seeded Board other specs read, so they run after them.
+    {
+      name: "chromium-moves",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: /drag-and-drop\.spec\.ts/,
+      dependencies: ["chromium"],
+    },
+  ],
   // A production build against the disposable `test` database, freshly seeded.
   webServer: {
     command: `tsx scripts/seed.ts --test --yes && EXPOSE_TESTING_API=1 next build && next start -p ${port}`,

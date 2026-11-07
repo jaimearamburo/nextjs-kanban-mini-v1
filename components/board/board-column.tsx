@@ -15,6 +15,7 @@ export function BoardColumn({
   return (
     <section
       aria-labelledby={headingId}
+      data-status={status}
       className="flex w-70 shrink-0 flex-col rounded-lg bg-muted/70 dark:bg-muted/40"
     >
       <header className="flex items-center gap-2 px-3 pt-3 pb-2">
@@ -28,7 +29,9 @@ export function BoardColumn({
           {count}
         </span>
       </header>
-      <div className="flex flex-col gap-2 px-2 pb-2">{children}</div>
+      <div data-column-tasks className="relative flex flex-col gap-2 px-2 pb-2">
+        {children}
+      </div>
     </section>
   );
 }

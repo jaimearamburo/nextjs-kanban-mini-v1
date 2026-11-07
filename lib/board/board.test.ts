@@ -36,6 +36,11 @@ async function givenTask(task: {
   });
 }
 
+/** A Guest to act in a write. */
+function givenGuest() {
+  return testDb.guest.create({ data: { name: "Brave Fox", color: "violet" } });
+}
+
 function titlesByStatus(statuses: { status: Status; tasks: { title: string }[] }[]) {
   return statuses.map(({ status, tasks }) => [
     status,
@@ -302,10 +307,6 @@ async function shownPriority(taskId: string) {
 }
 
 describe("setPriority", () => {
-  /** The Guest acting in each write. */
-  const givenGuest = () =>
-    testDb.guest.create({ data: { name: "Brave Fox", color: "violet" } });
-
   test("saves the final value it is given", async () => {
     const task = await givenTask({ title: "Triage me", rank: "a0", priority: "LOW" });
     const guest = await givenGuest();
@@ -344,6 +345,199 @@ describe("setPriority", () => {
     const guest = await givenGuest();
 
     const result = await board.setPriority(guest, { taskId: task.id, priority: "HIGH" });
+
+    expect(result).toEqual({ ok: false, error: "This Task no longer exists." });
+  });
+});
+
+describe("moveTask", () => {
+  /** The titles the Board shows in one Status, in Rank order. */
+  async function shownTitles(status: Status) {
+    const { statuses } = await board.getBoard();
+    return statuses.find((column) => column.status === status)!.tasks.map((task) => task.title);
+  }
+
+  test("moves a Task to another Status, between the two cards it was dropped between", async () => {
+    const moving = await givenTask({ title: "Moving", status: "TODO", rank: "a0" });
+    const first = await givenTask({ title: "First", status: "IN_PROGRESS", rank: "a0" });
+    const second = await givenTask({ title: "Second", status: "IN_PROGRESS", rank: "a1" });
+    const guest = await givenGuest();
+
+    const result = await board.moveTask(guest, {
+      taskId: moving.id,
+      status: "IN_PROGRESS",
+      beforeId: first.id,
+      afterId: second.id,
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(await shownTitles("TODO")).toEqual([]);
+    expect(await shownTitles("IN_PROGRESS")).toEqual(["First", "Moving", "Second"]);
+  });
+
+  test("reorders a Task within its Status", async () => {
+    const a = await givenTask({ title: "A", rank: "a0" });
+    const b = await givenTask({ title: "B", rank: "a1" });
+    const c = await givenTask({ title: "C", rank: "a2" });
+    const guest = await givenGuest();
+
+    const result = await board.moveTask(guest, {
+      taskId: a.id,
+      status: "TODO",
+      beforeId: b.id,
+      afterId: c.id,
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(await shownTitles("TODO")).toEqual(["B", "A", "C"]);
+  });
+
+  test("inserts at the top of a Status", async () => {
+    const top = await givenTask({ title: "Top", status: "DONE", rank: "a0" });
+    await givenTask({ title: "Bottom", status: "DONE", rank: "a1" });
+    const moving = await givenTask({ title: "Moving", rank: "a0" });
+    const guest = await givenGuest();
+
+    await board.moveTask(guest, { taskId: moving.id, status: "DONE", beforeId: null, afterId: top.id });
+
+    expect(await shownTitles("DONE")).toEqual(["Moving", "Top", "Bottom"]);
+  });
+
+  test("inserts at the bottom of a Status", async () => {
+    await givenTask({ title: "Top", status: "DONE", rank: "a0" });
+    const bottom = await givenTask({ title: "Bottom", status: "DONE", rank: "a1" });
+    const moving = await givenTask({ title: "Moving", rank: "a0" });
+    const guest = await givenGuest();
+
+    await board.moveTask(guest, { taskId: moving.id, status: "DONE", beforeId: bottom.id, afterId: null });
+
+    expect(await shownTitles("DONE")).toEqual(["Top", "Bottom", "Moving"]);
+  });
+
+  test("moves into an empty Status", async () => {
+    const moving = await givenTask({ title: "Moving", rank: "a0" });
+    const guest = await givenGuest();
+
+    await board.moveTask(guest, { taskId: moving.id, status: "IN_REVIEW", beforeId: null, afterId: null });
+
+    expect(await shownTitles("TODO")).toEqual([]);
+    expect(await shownTitles("IN_REVIEW")).toEqual(["Moving"]);
+  });
+
+  test("two concurrent moves into the same gap both land in it, in one order every Guest sees", async () => {
+    const a = await givenTask({ title: "A", rank: "a0" });
+    const b = await givenTask({ title: "B", rank: "a1" });
+    const x = await givenTask({ title: "X", status: "DONE", rank: "a0" });
+    const y = await givenTask({ title: "Y", status: "DONE", rank: "a1" });
+    const [first, second] = await Promise.all([givenGuest(), givenGuest()]);
+
+    // Both Guests drop into the gap between A and B at the same moment.
+    const results = await Promise.all([
+      board.moveTask(first, { taskId: x.id, status: "TODO", beforeId: a.id, afterId: b.id }),
+      board.moveTask(second, { taskId: y.id, status: "TODO", beforeId: a.id, afterId: b.id }),
+    ]);
+
+    expect(results).toEqual([{ ok: true }, { ok: true }]);
+    const shown = await shownTitles("TODO");
+    expect([shown[0], shown[3]]).toEqual(["A", "B"]);
+    expect(shown.slice(1, 3).sort()).toEqual(["X", "Y"]);
+    expect(await shownTitles("TODO")).toEqual(shown);
+  });
+
+  test("drops into the same gap take different Ranks, so a later drop between them lands exactly there", async () => {
+    // Each drop picks a Rank at random from several between its neighbours.
+    const draws = [0.1, 0.9];
+    const jittered = createBoard(testDb, { random: () => draws.shift() ?? 0.5 });
+    const a = await givenTask({ title: "A", rank: "a0" });
+    const b = await givenTask({ title: "B", rank: "a1" });
+    const x = await givenTask({ id: "00000000-0000-7000-8000-000000000001", title: "X", status: "DONE", rank: "a0" });
+    const y = await givenTask({ id: "00000000-0000-7000-8000-000000000002", title: "Y", status: "DONE", rank: "a1" });
+    // The highest id, so sharing a tied Rank would put it after both.
+    const z = await givenTask({ id: "00000000-0000-7000-8000-000000000003", title: "Z", status: "DONE", rank: "a2" });
+    const guest = await givenGuest();
+    // Both dropped into the A–B gap as their Guests saw it. Only the
+    // neighbours shape the Rank, so one after the other computes what
+    // concurrent drops would, with a known draw for each.
+    await jittered.moveTask(guest, { taskId: x.id, status: "TODO", beforeId: a.id, afterId: b.id });
+    await jittered.moveTask(guest, { taskId: y.id, status: "TODO", beforeId: a.id, afterId: b.id });
+
+    const result = await jittered.moveTask(guest, {
+      taskId: z.id,
+      status: "TODO",
+      beforeId: x.id,
+      afterId: y.id,
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(await shownTitles("TODO")).toEqual(["A", "X", "Z", "Y", "B"]);
+  });
+
+  test("a drop between two Tasks whose Ranks tied still succeeds, keeping the order deterministic", async () => {
+    const lower = await givenTask({ id: "00000000-0000-7000-8000-000000000001", title: "Lower id", rank: "a0" });
+    const higher = await givenTask({ id: "00000000-0000-7000-8000-000000000002", title: "Higher id", rank: "a0" });
+    const moving = await givenTask({ id: "00000000-0000-7000-8000-000000000003", title: "Moving", status: "DONE", rank: "a0" });
+    const guest = await givenGuest();
+
+    const result = await board.moveTask(guest, {
+      taskId: moving.id,
+      status: "TODO",
+      beforeId: lower.id,
+      afterId: higher.id,
+    });
+
+    // No Rank lies strictly between equal Ranks and only the moved Task is
+    // written, so it shares theirs and lands by Task id, inside the tie.
+    expect(result).toEqual({ ok: true });
+    expect(await shownTitles("TODO")).toEqual(["Lower id", "Higher id", "Moving"]);
+  });
+
+  test("rejects a neighbour that isn't on the Board in the target Status, leaving the Task in place", async () => {
+    const moving = await givenTask({ title: "Moving", rank: "a0" });
+    const elsewhere = await givenTask({ title: "Elsewhere", status: "DONE", rank: "a0" });
+    const archived = await givenTask({ title: "Archived", status: "IN_PROGRESS", rank: "a0", archived: true });
+    const target = await givenTask({ title: "Target", status: "IN_PROGRESS", rank: "a1" });
+    const guest = await givenGuest();
+    const unknownId = "00000000-0000-7000-8000-000000000099";
+
+    const moves = [
+      { beforeId: unknownId, afterId: null },
+      { beforeId: null, afterId: unknownId },
+      { beforeId: elsewhere.id, afterId: null },
+      { beforeId: archived.id, afterId: target.id },
+      { beforeId: moving.id, afterId: null },
+      { beforeId: "not-a-task", afterId: null },
+    ];
+    for (const neighbours of moves) {
+      const result = await board.moveTask(guest, { taskId: moving.id, status: "IN_PROGRESS", ...neighbours });
+      expect(result).toEqual({ ok: false, error: "Invalid input." });
+    }
+
+    expect(await shownTitles("TODO")).toEqual(["Moving"]);
+    expect(await shownTitles("IN_PROGRESS")).toEqual(["Target"]);
+  });
+
+  test("rejects neighbours given in the wrong order", async () => {
+    const moving = await givenTask({ title: "Moving", rank: "a0" });
+    const first = await givenTask({ title: "First", status: "DONE", rank: "a0" });
+    const second = await givenTask({ title: "Second", status: "DONE", rank: "a1" });
+    const guest = await givenGuest();
+
+    const result = await board.moveTask(guest, {
+      taskId: moving.id,
+      status: "DONE",
+      beforeId: second.id,
+      afterId: first.id,
+    });
+
+    expect(result).toEqual({ ok: false, error: "Invalid input." });
+    expect(await shownTitles("DONE")).toEqual(["First", "Second"]);
+  });
+
+  test("refuses an Archived Task", async () => {
+    const moving = await givenTask({ title: "Archived", rank: "a0", archived: true });
+    const guest = await givenGuest();
+
+    const result = await board.moveTask(guest, { taskId: moving.id, status: "DONE", beforeId: null, afterId: null });
 
     expect(result).toEqual({ ok: false, error: "This Task no longer exists." });
   });
