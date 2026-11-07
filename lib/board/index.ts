@@ -3,16 +3,27 @@ import { cacheLife, cacheTag } from "next/cache";
 import { db } from "@/lib/db";
 import { createBoard } from "./board";
 import { cacheTags } from "./cache-tags";
+import { boardFilter, type BoardFilter } from "./schemas";
 
 export * from "./domain";
 
 const board = createBoard(db);
 
-/** The Board, cached until a write invalidates the Board tag or a Task's tag. */
-export async function getBoard() {
+/**
+ * The Board narrowed by its search params (Label Filter and text search).
+ * Malformed params are ignored.
+ */
+export async function getBoard(searchParams: unknown) {
+  // Parsed before the cached read, so the cache is keyed by the normalised
+  // filter rather than the raw URL (stray params, Label order, whitespace).
+  return getFilteredBoard(boardFilter.parse(searchParams));
+}
+
+/** Cached per filter until a write invalidates the Board tag or a Task's tag. */
+async function getFilteredBoard(filter: BoardFilter) {
   "use cache";
   cacheLife("hours");
-  const result = await board.getBoard();
+  const result = await board.getBoard(filter);
   cacheTag(cacheTags.board);
   const taskTags = result.statuses.flatMap(({ tasks }) =>
     tasks.map((task) => cacheTags.task(task.id)),
