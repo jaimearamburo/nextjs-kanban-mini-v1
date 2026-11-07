@@ -1,20 +1,42 @@
 import Link from "next/link";
+import type { ComponentProps } from "react";
 import { setTaskPriority } from "@/lib/board/actions";
 import type { BoardTask } from "@/lib/board/domain";
+import { cn } from "@/lib/utils";
 import { AssigneeAvatar } from "./assignee-avatar";
+import { DropLine, type DropEdge } from "./drop-line";
 import { LabelBadge } from "./label-badge";
 import { PriorityButton } from "./priority-button";
 
-export function TaskCard({ task }: { task: BoardTask }) {
+/**
+ * A Task's card. `dropEdge` draws the drop line on that edge while a dragged
+ * card would land there.
+ */
+export function TaskCard({
+  task,
+  dropEdge,
+  className,
+  ...props
+}: {
+  task: BoardTask;
+  dropEdge?: DropEdge;
+} & ComponentProps<"article">) {
   return (
     <article
       aria-label={task.title}
-      className="group rounded-md border border-border/70 bg-card p-3 shadow-xs dark:border-border"
+      className={cn(
+        "group relative rounded-md border border-border/70 bg-card p-3 shadow-xs dark:border-border",
+        className,
+      )}
+      {...props}
     >
+      {dropEdge && <DropLine edge={dropEdge} />}
       <h3 className="text-sm leading-snug font-medium text-card-foreground">
         {/* Only the title opens the Task, so a click meant for the Priority
-            control (or, later, a drag) never opens it by accident. */}
+            control or a drag never opens it by accident. */}
         <Link
+          // The card is dragged, never the link (the browser's own link drag).
+          draggable={false}
           href={`/tasks/${task.id}`}
           // Per-link prefetch also loads the cached Task, not just the route's
           // shell, so the detail is ready the moment the title is clicked.

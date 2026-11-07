@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PRIORITIES } from "./domain";
+import { PRIORITIES, STATUSES } from "./domain";
 
 // Shared Zod schemas for every Board input, reads and writes alike. The Board
 // module parses with them at its boundary; the client can reuse them for form errors.
@@ -8,7 +8,21 @@ export const taskId = z.uuid();
 
 export const priority = z.enum(PRIORITIES);
 
+export const status = z.enum(STATUSES);
+
 export const setPriorityInput = z.object({ taskId, priority });
+
+/**
+ * A drop: the target Status and the cards the Task lands between, as the
+ * dropping Guest sees them. `beforeId` is the card above (null at the top),
+ * `afterId` the card below (null at the bottom).
+ */
+export const moveTaskInput = z.object({
+  taskId,
+  status,
+  beforeId: taskId.nullable(),
+  afterId: taskId.nullable(),
+});
 
 /** A search param's string values; a repeated param (`?a=1&a=2`) has several. */
 function paramValues(value: unknown): string[] {
@@ -44,3 +58,6 @@ export const boardFilter = z
   .catch({ labels: [], q: "" });
 
 export type BoardFilter = z.output<typeof boardFilter>;
+
+/** A drop, as the client sends it and the Board module takes it. */
+export type MoveTaskInput = z.output<typeof moveTaskInput>;

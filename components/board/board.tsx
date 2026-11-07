@@ -1,7 +1,5 @@
 import { getBoard } from "@/lib/board";
-import { BoardColumn } from "./board-column";
-import { BoardLayout } from "./board-layout";
-import { TaskCard } from "./task-card";
+import { DraggableBoard } from "./draggable-board";
 
 export async function Board({
   searchParams,
@@ -14,33 +12,13 @@ export async function Board({
   // reload right after a write could show the old Board.
   const board = await getBoard(await searchParams);
   return (
-    <BoardLayout
+    <DraggableBoard
+      statuses={board.statuses}
       aria-label="Board"
       role="region"
       // Dims while a Label Filter change loads: the ChipGroup's data-pending,
-      // scoped to the filter bar so a pending Priority on a card dims nothing.
+      // scoped to the filter bar so a pending Priority or move dims nothing.
       className="transition-opacity group-has-[[data-board-filters]_[data-pending]]/board:opacity-50"
-    >
-      {board.statuses.map(({ status, tasks }) => (
-        <BoardColumn
-          key={status}
-          status={status}
-          count={
-            <>
-              {tasks.length}
-              <span className="sr-only"> Tasks</span>
-            </>
-          }
-        >
-          {tasks.length === 0 ? (
-            <p className="px-1 py-6 text-center text-xs text-muted-foreground">
-              No Tasks
-            </p>
-          ) : (
-            tasks.map((task) => <TaskCard key={task.id} task={task} />)
-          )}
-        </BoardColumn>
-      ))}
-    </BoardLayout>
+    />
   );
 }
