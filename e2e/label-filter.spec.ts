@@ -114,6 +114,21 @@ test("search combines with the Label Filter, and typing adds no history entries"
   await expectCards(page, [MODAL_BUG]);
 });
 
+test("a burst of typing sends one search to the server, after the pause", async ({ page }) => {
+  await openBoard(page);
+  const searches: string[] = [];
+  page.on("request", (request) => {
+    const q = new URL(request.url()).searchParams.get("q");
+    if (q !== null) searches.push(q);
+  });
+
+  await search(page).pressSequentially("modal", { delay: 50 });
+
+  await expect(page).toHaveURL(/\/\?q=modal$/);
+  await expectCards(page, [MODAL_BUG]);
+  expect(searches).toEqual(["modal"]);
+});
+
 test("the clicked pill highlights at once and the Board dims while the filter loads", async ({
   page,
 }) => {
@@ -147,41 +162,56 @@ test("the clicked pill highlights at once and the Board dims while the filter lo
   await expect(board(page)).toHaveCSS("opacity", "1");
 });
 
+/** Expects the Board to show both the Bug Label Filter and the "modal" search. */
+async function expectBugAndModal(page: Page) {
+  await expect(page).toHaveURL(/\/\?(labels=bug&q=modal|q=modal&labels=bug)$/);
+  await expect(pill(page, "Bug")).toHaveAttribute("aria-pressed", "true");
+  await expect(search(page)).toHaveValue("modal");
+  await expectCards(page, [MODAL_BUG]);
+}
+
 for (const [first, then] of [
   ["a Label change", "typing"],
   ["a search", "a Label change"],
 ] as const) {
   test(`${then} while ${first} is loading keeps both`, async ({ page }) => {
     await openBoard(page);
-    const steps = {
-      "a Label change": () => pill(page, "Bug").click(),
-      typing: () => search(page).fill("modal"),
-      "a search": () => search(page).fill("modal"),
-    };
     // Hold the first change's server render until the second has been made.
     let release!: () => void;
     const held = new Promise<void>((resolve) => (release = resolve));
+    let arrived!: () => void;
+    const inFlight = new Promise<void>((resolve) => (arrived = resolve));
     await page.route(
       (url) =>
         first === "a Label change"
           ? url.searchParams.get("labels") === "bug" && !url.searchParams.has("q")
           : url.searchParams.get("q") === "modal" && !url.searchParams.has("labels"),
       async (route) => {
+        arrived();
         await held;
         await route.continue();
       },
     );
+    const labelChange = () => pill(page, "Bug").click();
+    const typing = () => search(page).fill("modal");
 
-    await steps[first]();
-    await steps[then]();
+    await (first === "a Label change" ? labelChange() : typing());
+    await inFlight;
+    await (then === "a Label change" ? labelChange() : typing());
     release();
 
-    await expect(page).toHaveURL(/\/\?(labels=bug&q=modal|q=modal&labels=bug)$/);
-    await expect(pill(page, "Bug")).toHaveAttribute("aria-pressed", "true");
-    await expect(search(page)).toHaveValue("modal");
-    await expectCards(page, [MODAL_BUG]);
+    await expectBugAndModal(page);
   });
 }
+
+test("a Label change while a search waits out its pause keeps both", async ({ page }) => {
+  await openBoard(page);
+
+  await search(page).fill("modal");
+  await pill(page, "Bug").click();
+
+  await expectBugAndModal(page);
+});
 
 test("invalid search params are ignored", async ({ page }) => {
   await openBoard(page, "/?labels=nope,%27%3B,docs&q=");

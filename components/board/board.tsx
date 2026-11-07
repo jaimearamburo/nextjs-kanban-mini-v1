@@ -17,8 +17,9 @@ export async function Board({
     <BoardLayout
       aria-label="Board"
       role="region"
-      // Dims while a Label Filter change loads (the ChipGroup's data-pending).
-      className="transition-opacity group-has-data-pending/board:opacity-50"
+      // Dims while a Label Filter change loads: the ChipGroup's data-pending,
+      // scoped to the filter bar so a pending Priority on a card dims nothing.
+      className="transition-opacity group-has-[[data-board-filters]_[data-pending]]/board:opacity-50"
     >
       {board.statuses.map(({ status, tasks }) => (
         <BoardColumn

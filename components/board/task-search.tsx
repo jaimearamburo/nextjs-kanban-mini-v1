@@ -1,9 +1,12 @@
 "use client";
 
-import { useDeferredValue, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { SearchIcon } from "lucide-react";
 import { boardFilter } from "@/lib/board/schemas";
 import type { BoardUrl } from "./board-url";
+
+/** How long typing must pause before the search goes to the server. */
+const SEARCH_DEBOUNCE_MS = 300;
 
 /** A search as the server reads it (trimmed). */
 function normalise(q: string | null) {
@@ -13,18 +16,22 @@ function normalise(q: string | null) {
 /**
  * Text search over Task titles and descriptions, kept in `?q=` alongside the
  * Label Filter. Typing replaces the current history entry rather than adding
- * one. The input renders the typed text on every keystroke; the URL follows a
- * deferred copy, so slow Board renders never hold the input back.
+ * one. The input renders the typed text on every keystroke, while the URL,
+ * and so the server's search, waits for a pause in typing.
  */
 export function TaskSearch({ q, boardUrl }: { q: string; boardUrl: BoardUrl }) {
   const [query, setQuery] = useState(q);
-  const deferredQuery = useDeferredValue(query);
 
   useEffect(() => {
-    const next = normalise(deferredQuery);
+    const next = normalise(query);
     if (next === normalise(boardUrl.get("q"))) return;
-    boardUrl.set("q", next || null, "replace");
-  }, [deferredQuery, boardUrl]);
+    // Each keystroke cancels the previous timer, so a burst sends one search.
+    const timer = setTimeout(
+      () => boardUrl.set("q", next || null, "replace"),
+      SEARCH_DEBOUNCE_MS,
+    );
+    return () => clearTimeout(timer);
+  }, [query, boardUrl]);
 
   // Back and forward restore an older `q`; show it in the input.
   useEffect(() => {

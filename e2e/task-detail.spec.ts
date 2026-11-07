@@ -55,6 +55,23 @@ test("clicking a card opens the Task in a modal over the Board and changes the U
   ).toBeVisible();
 });
 
+test("only the title opens the Task: a click elsewhere on the card does nothing", async ({
+  page,
+}) => {
+  await openBoard(page);
+  const card = board(page).getByRole("article", { name: TITLE });
+
+  // The Labels, between the title and the Priority control. Forced, so the
+  // click lands wherever a person's would, even on an element covering them.
+  await card.getByRole("list", { name: "Labels" }).click({ force: true });
+
+  // Give a navigation time to start: asserting "still on the Board" at once
+  // would pass before any click could take effect.
+  await page.waitForTimeout(500);
+  expect(new URL(page.url()).pathname).toBe("/");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
 test("the Task opens instantly from a card, with no wait on the server", async ({ page }) => {
   await openBoard(page);
 
@@ -86,6 +103,11 @@ test("the Task opens as a side panel below the header, covering three quarters o
     expect(box.y).toBe(header!.y + header!.height);
     expect(box.y + box.height).toBe(800);
   }).toPass();
+  // The Board behind is dimmed and very lightly blurred.
+  await expect(page.locator(".fixed[role=presentation]")).toHaveCSS(
+    "backdrop-filter",
+    "blur(2px)",
+  );
   // The panel scrolls on its own; the Board behind it doesn't move.
   expect(await panel.evaluate((el) => getComputedStyle(el).overflowY)).toBe("auto");
 });

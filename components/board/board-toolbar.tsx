@@ -25,7 +25,11 @@ export async function BoardToolbar({
 
 export function BoardToolbarLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-3 px-4 pb-4 sm:flex-row sm:flex-wrap sm:items-center sm:px-6">
+    // data-board-filters: the Board dims while a control in here is pending.
+    <div
+      data-board-filters
+      className="flex flex-col gap-3 px-4 pb-4 sm:flex-row sm:flex-wrap sm:items-center sm:px-6"
+    >
       {children}
     </div>
   );
