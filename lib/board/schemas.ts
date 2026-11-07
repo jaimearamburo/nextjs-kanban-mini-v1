@@ -10,6 +10,16 @@ export const priority = z.enum(PRIORITIES);
 
 export const status = z.enum(STATUSES);
 
+/**
+ * The tab a write came from, echoed in its event so that tab skips it.
+ * Anything but a short id is dropped (the event then reaches every tab).
+ */
+export const origin = z
+  .string()
+  .regex(/^[A-Za-z0-9_-]{1,64}$/)
+  .nullable()
+  .catch(null);
+
 export const setPriorityInput = z.object({ taskId, priority });
 
 /**

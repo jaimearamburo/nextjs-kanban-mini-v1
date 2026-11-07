@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ComponentProps } from "react";
 import { setTaskPriority } from "@/lib/board/actions";
 import type { BoardTask } from "@/lib/board/domain";
+import { getTabOrigin } from "@/lib/realtime/tab-origin";
 import { cn } from "@/lib/utils";
 import { AssigneeAvatar } from "./assignee-avatar";
 import { DropLine, type DropEdge } from "./drop-line";
@@ -57,7 +58,7 @@ export function TaskCard({
         <div className="flex shrink-0 items-center gap-1.5">
           <PriorityButton
             priority={task.priority}
-            changeAction={setTaskPriority.bind(null, task.id)}
+            changeAction={(priority) => setTaskPriority(task.id, priority, getTabOrigin())}
           />
           <AssigneeAvatar assignee={task.assignee} />
         </div>

@@ -1,13 +1,14 @@
 import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
 import { db } from "@/lib/db";
+import { publishBoardChange } from "@/lib/realtime/server";
 import { createBoard } from "./board";
 import { cacheTags } from "./cache-tags";
 import { boardFilter, type BoardFilter } from "./schemas";
 
 export * from "./domain";
 
-const board = createBoard(db);
+const board = createBoard(db, { publishChange: publishBoardChange });
 
 /**
  * The Board narrowed by its search params (Label Filter and text search).
