@@ -424,21 +424,52 @@ describe("moveTask", () => {
     expect(await shownTitles("IN_REVIEW")).toEqual(["Moving"]);
   });
 
-  test("two concurrent moves into the same gap give a deterministic order, by Task id", async () => {
+  test("two concurrent moves into the same gap both land in it, in one order every Guest sees", async () => {
     const a = await givenTask({ title: "A", rank: "a0" });
     const b = await givenTask({ title: "B", rank: "a1" });
-    const lower = await givenTask({ id: "00000000-0000-7000-8000-000000000001", title: "Lower id", status: "DONE", rank: "a0" });
-    const higher = await givenTask({ id: "00000000-0000-7000-8000-000000000002", title: "Higher id", status: "DONE", rank: "a1" });
+    const x = await givenTask({ title: "X", status: "DONE", rank: "a0" });
+    const y = await givenTask({ title: "Y", status: "DONE", rank: "a1" });
     const [first, second] = await Promise.all([givenGuest(), givenGuest()]);
 
     // Both Guests drop into the gap between A and B at the same moment.
     const results = await Promise.all([
-      board.moveTask(first, { taskId: higher.id, status: "TODO", beforeId: a.id, afterId: b.id }),
-      board.moveTask(second, { taskId: lower.id, status: "TODO", beforeId: a.id, afterId: b.id }),
+      board.moveTask(first, { taskId: x.id, status: "TODO", beforeId: a.id, afterId: b.id }),
+      board.moveTask(second, { taskId: y.id, status: "TODO", beforeId: a.id, afterId: b.id }),
     ]);
 
     expect(results).toEqual([{ ok: true }, { ok: true }]);
-    expect(await shownTitles("TODO")).toEqual(["A", "Lower id", "Higher id", "B"]);
+    const shown = await shownTitles("TODO");
+    expect([shown[0], shown[3]]).toEqual(["A", "B"]);
+    expect(shown.slice(1, 3).sort()).toEqual(["X", "Y"]);
+    expect(await shownTitles("TODO")).toEqual(shown);
+  });
+
+  test("drops into the same gap take different Ranks, so a later drop between them lands exactly there", async () => {
+    // Each drop picks a Rank at random from several between its neighbours.
+    const draws = [0.1, 0.9];
+    const jittered = createBoard(testDb, { random: () => draws.shift() ?? 0.5 });
+    const a = await givenTask({ title: "A", rank: "a0" });
+    const b = await givenTask({ title: "B", rank: "a1" });
+    const x = await givenTask({ id: "00000000-0000-7000-8000-000000000001", title: "X", status: "DONE", rank: "a0" });
+    const y = await givenTask({ id: "00000000-0000-7000-8000-000000000002", title: "Y", status: "DONE", rank: "a1" });
+    // The highest id, so sharing a tied Rank would put it after both.
+    const z = await givenTask({ id: "00000000-0000-7000-8000-000000000003", title: "Z", status: "DONE", rank: "a2" });
+    const guest = await givenGuest();
+    // Both dropped into the A–B gap as their Guests saw it. Only the
+    // neighbours shape the Rank, so one after the other computes what
+    // concurrent drops would, with a known draw for each.
+    await jittered.moveTask(guest, { taskId: x.id, status: "TODO", beforeId: a.id, afterId: b.id });
+    await jittered.moveTask(guest, { taskId: y.id, status: "TODO", beforeId: a.id, afterId: b.id });
+
+    const result = await jittered.moveTask(guest, {
+      taskId: z.id,
+      status: "TODO",
+      beforeId: x.id,
+      afterId: y.id,
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(await shownTitles("TODO")).toEqual(["A", "X", "Z", "Y", "B"]);
   });
 
   test("a drop between two Tasks whose Ranks tied still succeeds, keeping the order deterministic", async () => {

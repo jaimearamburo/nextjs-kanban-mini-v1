@@ -1,4 +1,4 @@
-import { generateKeyBetween } from "fractional-indexing";
+import { generateNKeysBetween } from "fractional-indexing";
 import type { Database } from "@/lib/db/client";
 import type { Guest } from "@/lib/guests/guests";
 import {
@@ -48,7 +48,16 @@ function compareBoardOrder(a: { id: string; rank: string }, b: { id: string; ran
  * The Board module: every business rule for the one shared Board lives here.
  * Its only dependency is the database.
  */
-export function createBoard(db: Database) {
+/**
+ * How many evenly spaced Ranks a drop picks from at random, so drops into
+ * the same gap at the same moment rarely tie (1 in this many).
+ */
+const RANK_CHOICES = 16;
+
+export function createBoard(
+  db: Database,
+  { random = Math.random }: { random?: () => number } = {},
+) {
   return {
     /**
      * The Board, narrowed by its search params: a Task is shown if it has any
@@ -148,13 +157,16 @@ export function createBoard(db: Database) {
       const before = neighbours.find((task) => task.id === beforeId) ?? null;
       const after = neighbours.find((task) => task.id === afterId) ?? null;
       if (before && after && compareBoardOrder(before, after) >= 0) return invalidInput;
-      // Neighbours whose Ranks tied (concurrent drops into one gap) leave no
-      // Rank strictly between them, so the Task shares theirs and its id
-      // places it within the tie; still deterministic, still one row written.
+      // A random pick among several Ranks in the gap, so concurrent drops
+      // into it rarely tie. Neighbours that did tie leave no Rank strictly
+      // between them, so the Task shares theirs and its id places it within
+      // the tie: still deterministic, still one row written.
       const rank =
         before && after && before.rank === after.rank
           ? before.rank
-          : generateKeyBetween(before?.rank ?? null, after?.rank ?? null);
+          : generateNKeysBetween(before?.rank ?? null, after?.rank ?? null, RANK_CHOICES)[
+              Math.floor(random() * RANK_CHOICES)
+            ];
       const { count } = await db.task.updateMany({
         where: { id: taskId, archivedAt: null },
         data: { status, rank },
