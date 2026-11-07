@@ -9,15 +9,16 @@ import {
   useSensor,
   useSensors,
   type Announcements,
-  type DragMoveEvent,
   type DragStartEvent,
   type KeyboardCoordinateGetter,
   type ScreenReaderInstructions,
 } from "@dnd-kit/core";
 import {
+  memo,
   startTransition,
   useCallback,
   useLayoutEffect,
+  useMemo,
   useOptimistic,
   useRef,
   useState,
@@ -42,6 +43,18 @@ import {
 import { TaskCard } from "./task-card";
 
 type Point = { x: number; y: number };
+
+/** Cards are shown memoised, so a drag re-renders only the cards it changes. */
+const MemoTaskCard = memo(TaskCard);
+
+/**
+ * Whether a press starts on a control inside the card (the title link, the
+ * Priority button). Those need a few pixels of movement before a drag starts,
+ * so a click still works; anywhere else on the card a drag starts at once.
+ */
+function isOnControl(event: Event) {
+  return event.target instanceof Element && event.target.closest("a, button") !== null;
+}
 
 const screenReaderInstructions: ScreenReaderInstructions = {
   draggable:
@@ -112,6 +125,8 @@ export function DraggableBoard({
 }: { statuses: ClientStatusTasks[] } & Omit<ComponentProps<typeof BoardLayout>, "children">) {
   const [optimisticStatuses, applyOptimisticMove] = useOptimistic(statuses, applyMove);
   const boardRef = useRef<HTMLDivElement>(null);
+  // The dragged card, set once it has actually moved: the overlay and the
+  // faded original appear on the first pixel, never for a plain click.
   const [active, setActive] = useState<BoardTask | null>(null);
   // Where the drop line shows: only where a drop would change something.
   const [shownDrop, setShownDrop] = useState<DropSlot | null>(null);
@@ -123,6 +138,8 @@ export function DraggableBoard({
     statusesRef.current = optimisticStatuses;
   }, [optimisticStatuses]);
   const pointerRef = useRef<Point | null>(null);
+  const draggingRef = useRef<{ task: BoardTask; start: Point; moved: boolean } | null>(null);
+  const frameRef = useRef<number | null>(null);
 
   const updateDrop = useCallback((slot: DropSlot | null) => {
     if (isSameSlot(slot, dropRef.current) || slot === dropRef.current) return;
@@ -159,11 +176,23 @@ export function DraggableBoard({
     [updateDrop],
   );
 
+  // Stable options: a new object would make dnd-kit rebuild the sensors,
+  // and with them every card's listeners, on each render.
+  const mouseOptions = useMemo(
+    () => ({
+      activationConstraint: { distance: 3 },
+      bypassActivationConstraint: ({ event }: { event: Event }) => !isOnControl(event),
+    }),
+    [],
+  );
+  const keyboardOptions = useMemo(
+    () => ({ coordinateGetter: keyboardCoordinates }),
+    [keyboardCoordinates],
+  );
   const sensors = useSensors(
     // Mouse only: touch drags (long-press) are the mobile ticket's (ADR-0003).
-    // A short distance first, so clicks on the title and Priority still work.
-    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: keyboardCoordinates }),
+    useSensor(MouseSensor, mouseOptions),
+    useSensor(KeyboardSensor, keyboardOptions),
   );
 
   const titleOf = (id: string | number) =>
@@ -192,37 +221,59 @@ export function DraggableBoard({
 
   // A drag that starts and ends on the title must not then follow the link.
   const preventClick = useCallback((event: MouseEvent) => event.preventDefault(), []);
+  // Mouse drags work out the slot from our own mousemove listener, once a
+  // frame, rather than from dnd-kit's onDragMove, which runs a render later.
   const trackPointer = useCallback(
-    (event: MouseEvent) => (pointerRef.current = { x: event.clientX, y: event.clientY }),
-    [],
+    (event: MouseEvent) => {
+      const dragging = draggingRef.current;
+      if (!dragging) return;
+      const point = { x: event.clientX, y: event.clientY };
+      pointerRef.current = point;
+      if (!dragging.moved && (point.x !== dragging.start.x || point.y !== dragging.start.y)) {
+        dragging.moved = true;
+        setActive(dragging.task);
+      }
+      if (frameRef.current !== null) return;
+      frameRef.current = requestAnimationFrame(() => {
+        frameRef.current = null;
+        const board = boardRef.current;
+        const latest = pointerRef.current;
+        const current = draggingRef.current;
+        if (board && latest && current) updateDrop(slotAt(board, latest, current.task.id));
+      });
+    },
+    [updateDrop],
   );
 
   function handleDragStart({ active, activatorEvent }: DragStartEvent) {
     const id = String(active.id);
+    const task = statusesRef.current.flatMap(({ tasks }) => tasks).find((t) => t.id === id);
+    if (!task) return;
     originRef.current = currentSlot(statusesRef.current, id);
     dropRef.current = originRef.current;
     setShownDrop(null);
-    setActive(
-      statusesRef.current.flatMap(({ tasks }) => tasks).find((task) => task.id === id) ?? null,
-    );
     if (activatorEvent instanceof MouseEvent) {
-      pointerRef.current = { x: activatorEvent.clientX, y: activatorEvent.clientY };
+      const start = { x: activatorEvent.clientX, y: activatorEvent.clientY };
+      pointerRef.current = start;
+      // A press on the card body starts the drag at once; the card shows as
+      // dragged from its first pixel of movement. A press on a control starts
+      // it only after a few pixels, so the card shows as dragged right away.
+      const moved = isOnControl(activatorEvent);
+      draggingRef.current = { task, start, moved };
+      if (moved) setActive(task);
       window.addEventListener("mousemove", trackPointer, { capture: true });
       window.addEventListener("click", preventClick, { capture: true });
+    } else {
+      setActive(task);
     }
-  }
-
-  function handleDragMove({ active, activatorEvent }: DragMoveEvent) {
-    // Keyboard drags set the slot as each arrow key is pressed.
-    if (!(activatorEvent instanceof MouseEvent)) return;
-    const board = boardRef.current;
-    const point = pointerRef.current;
-    if (board && point) updateDrop(slotAt(board, point, String(active.id)));
   }
 
   function endDrag() {
     setActive(null);
     setShownDrop(null);
+    draggingRef.current = null;
+    if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+    frameRef.current = null;
     window.removeEventListener("mousemove", trackPointer, { capture: true });
     // The click that follows mouseup comes in a later task; dnd-kit waits
     // 50ms before dropping its own click guard, and so do we.
@@ -251,7 +302,6 @@ export function DraggableBoard({
       sensors={sensors}
       accessibility={{ announcements, screenReaderInstructions }}
       onDragStart={handleDragStart}
-      onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
       onDragCancel={endDrag}
     >
@@ -284,6 +334,7 @@ export function DraggableBoard({
                 <DraggableTaskCard
                   key={task.id}
                   task={task}
+                  dimmed={task.id === active?.id}
                   data-pending={task.moving || undefined}
                   dropEdge={
                     task.id === lineAbove ? "top" : task.id === lineBelow ? "bottom" : undefined
@@ -296,7 +347,7 @@ export function DraggableBoard({
       </BoardLayout>
       <DragOverlay dropAnimation={null}>
         {active && (
-          <TaskCard
+          <MemoTaskCard
             task={active}
             aria-hidden
             inert
@@ -308,12 +359,16 @@ export function DraggableBoard({
   );
 }
 
-function DraggableTaskCard({
+/** A card that can be dragged; memoised so only the cards a drag changes re-render. */
+const DraggableTaskCard = memo(function DraggableTaskCard({
   task,
   dropEdge,
+  dimmed,
   ...props
-}: { task: BoardTask; dropEdge?: DropEdge } & ComponentProps<"article">) {
-  const { setNodeRef, setActivatorNodeRef, attributes, listeners, isDragging } = useDraggable({
+}: { task: BoardTask; dropEdge?: DropEdge; dimmed: boolean } & ComponentProps<"article">) {
+  // isDragging and the transform go unused: the overlay is what moves, and
+  // the original fades only once it has (`dimmed`).
+  const { setNodeRef, setActivatorNodeRef, attributes, listeners } = useDraggable({
     id: task.id,
     // Still an article to assistive tech; the whole card is the handle.
     attributes: { role: "article", roleDescription: "draggable Task" },
@@ -326,7 +381,7 @@ function DraggableTaskCard({
     [setNodeRef, setActivatorNodeRef],
   );
   return (
-    <TaskCard
+    <MemoTaskCard
       ref={ref}
       task={task}
       dropEdge={dropEdge}
@@ -336,8 +391,8 @@ function DraggableTaskCard({
       {...listeners}
       className={cn(
         "cursor-grab outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
-        isDragging && "opacity-40",
+        dimmed && "opacity-40",
       )}
     />
   );
-}
+});

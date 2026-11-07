@@ -224,3 +224,29 @@ test("a card can be dragged with the keyboard", async ({ page }) => {
   );
   await settled(moving);
 });
+
+test("the dragged card lifts off on the first pixel of movement, and a plain click lifts nothing", async ({
+  page,
+}) => {
+  await openBoard(page);
+  const source = card(page, "Prisma schema and seed data");
+  const overlay = page.locator("article[aria-hidden]");
+  const box = (await source.boundingBox())!;
+  // The card body, clear of the title link and the Priority button.
+  const body = { x: box.x + 12, y: box.y + box.height - 6 };
+
+  await page.mouse.move(body.x, body.y);
+  await page.mouse.down();
+  await page.mouse.up();
+  await expect(overlay).toHaveCount(0);
+  await expect(source).toHaveCSS("opacity", "1");
+
+  await page.mouse.down();
+  await page.mouse.move(body.x + 1, body.y);
+  await expect(overlay).toBeVisible();
+  await expect(source).toHaveCSS("opacity", "0.4");
+  // Over its own place, so letting go changes nothing.
+  await page.mouse.up();
+  await expect(overlay).toHaveCount(0);
+  await expect(source).not.toHaveAttribute("data-pending");
+});
