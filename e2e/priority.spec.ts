@@ -117,3 +117,22 @@ test("another browser's demo controls are unaffected", async ({ page, context, b
     await other.close();
   }
 });
+
+test("a pending Priority change dims nothing but its own button", async ({ page, context }) => {
+  await openBoard(page);
+  await setDemoControls(page, context, { latency: "1s", failure: "Off" });
+  const task = card(page, "Jira-style drop line for drag and drop");
+
+  await priorityButton(task).click();
+
+  await expect(priorityButton(task)).toHaveAttribute("data-pending");
+  // Sampled once, mid-way through the 1s latency and after any fade would
+  // have finished; a retrying assertion would pass once the change settles.
+  await page.waitForTimeout(400);
+  const opacity = await page
+    .getByRole("region", { name: "Board" })
+    .evaluate((el) => getComputedStyle(el).opacity);
+  await expect(priorityButton(task)).toHaveAttribute("data-pending");
+  expect(opacity).toBe("1");
+  await expect(priorityButton(task)).not.toHaveAttribute("data-pending");
+});

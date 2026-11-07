@@ -14,6 +14,16 @@ const labelColors: Record<string, string> = {
     "bg-slate-100 text-slate-700 ring-slate-600/15 dark:bg-slate-400/10 dark:text-slate-300 dark:ring-slate-400/25",
 };
 
+// The dot on a Label Filter pill.
+const labelDotColors: Record<string, string> = {
+  blue: "bg-blue-500",
+  green: "bg-emerald-500",
+  red: "bg-red-500",
+  purple: "bg-violet-500",
+  amber: "bg-amber-500",
+  slate: "bg-slate-500",
+};
+
 const avatarColors: Record<string, string> = {
   violet: "bg-violet-600 text-white",
   emerald: "bg-emerald-600 text-white",
@@ -31,6 +41,10 @@ const avatarColors: Record<string, string> = {
 
 export function labelColorClass(color: string): string {
   return labelColors[color] ?? labelColors.slate;
+}
+
+export function labelDotClass(color: string): string {
+  return labelDotColors[color] ?? labelDotColors.slate;
 }
 
 export function avatarColorClass(color: string): string {

@@ -14,6 +14,8 @@ beforeEach(async () => {
 // module has no way to create Tasks yet. Assertions go through the Board module only.
 async function givenTask(task: {
   title: string;
+  description?: string;
+  labels?: string[];
   status?: Status;
   rank: string;
   priority?: Priority;
@@ -24,6 +26,8 @@ async function givenTask(task: {
     data: {
       id: task.id,
       title: task.title,
+      description: task.description,
+      labels: task.labels && { connect: task.labels.map((id) => ({ id })) },
       status: task.status ?? "TODO",
       rank: task.rank,
       priority: task.priority,
@@ -125,6 +129,82 @@ describe("getBoard", () => {
         assignee: null,
       }),
     ]);
+  });
+});
+
+describe("getBoard with a Label Filter and search", () => {
+  beforeEach(async () => {
+    await testDb.label.createMany({
+      data: [
+        { id: "frontend", name: "Frontend", color: "blue", position: 0 },
+        { id: "backend", name: "Backend", color: "green", position: 1 },
+        { id: "bug", name: "Bug", color: "red", position: 2 },
+      ],
+    });
+  });
+
+  async function shownTitles(searchParams: unknown) {
+    const { statuses } = await board.getBoard(searchParams);
+    return statuses.flatMap(({ tasks }) => tasks.map((task) => task.title));
+  }
+
+  test("shows Tasks with any of the selected Labels", async () => {
+    await givenTask({ title: "Frontend only", rank: "a0", labels: ["frontend"] });
+    await givenTask({ title: "Bug only", rank: "a1", labels: ["bug"] });
+    await givenTask({ title: "Backend only", rank: "a2", labels: ["backend"] });
+    await givenTask({ title: "Frontend bug", rank: "a3", labels: ["frontend", "bug"] });
+    await givenTask({ title: "No Labels", rank: "a4" });
+
+    expect(await shownTitles({ labels: "frontend,bug" })).toEqual([
+      "Frontend only",
+      "Bug only",
+      "Frontend bug",
+    ]);
+  });
+
+  test("search matches the title or description, ignoring case", async () => {
+    await givenTask({ title: "Fix the MODAL", rank: "a0" });
+    await givenTask({ title: "Polish", description: "The modal flickers.", rank: "a1" });
+    await givenTask({ title: "Unrelated", description: "Nothing here.", rank: "a2" });
+
+    expect(await shownTitles({ q: "modal" })).toEqual(["Fix the MODAL", "Polish"]);
+  });
+
+  test("Labels combined with search narrow the Board to Tasks matching both", async () => {
+    await givenTask({ title: "Modal bug", rank: "a0", labels: ["bug"] });
+    await givenTask({ title: "Modal styles", rank: "a1", labels: ["frontend"] });
+    await givenTask({ title: "Modal API", rank: "a2", labels: ["backend"] });
+    await givenTask({ title: "Toast bug", rank: "a3", labels: ["bug"] });
+
+    expect(await shownTitles({ labels: "bug,frontend", q: "modal" })).toEqual([
+      "Modal bug",
+      "Modal styles",
+    ]);
+  });
+
+  test("search takes % and _ literally, not as wildcards", async () => {
+    await givenTask({ title: "Cut load time by 50%", rank: "a0" });
+    await givenTask({ title: "Rename user_id", rank: "a1" });
+    await givenTask({ title: "Plain title", rank: "a2" });
+
+    expect(await shownTitles({ q: "%" })).toEqual(["Cut load time by 50%"]);
+    expect(await shownTitles({ q: "_" })).toEqual(["Rename user_id"]);
+  });
+
+  test("ignores invalid search params, keeping any valid Labels", async () => {
+    await givenTask({ title: "Frontend", rank: "a0", labels: ["frontend"] });
+    await givenTask({ title: "Backend", rank: "a1", labels: ["backend"] });
+    const everyTask = ["Frontend", "Backend"];
+
+    // Malformed or unknown Label ids are dropped; the valid ones still filter.
+    expect(await shownTitles({ labels: "'; DROP TABLE,frontend,nope" })).toEqual(["Frontend"]);
+    expect(await shownTitles({ labels: ["backend", "BACKEND!"] })).toEqual(["Backend"]);
+    // With nothing valid left, the Board is unfiltered.
+    expect(await shownTitles({ labels: "nope,,," })).toEqual(everyTask);
+    expect(await shownTitles({ labels: 42, q: { nested: true } })).toEqual(everyTask);
+    expect(await shownTitles({ q: "   " })).toEqual(everyTask);
+    expect(await shownTitles("not an object")).toEqual(everyTask);
+    expect(await shownTitles(null)).toEqual(everyTask);
   });
 });
 

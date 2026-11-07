@@ -64,8 +64,8 @@ export function DemoControlsPopover({ settings }: { settings: DemoSettings }) {
         <PopoverHeader>
           <PopoverTitle>Demo controls</PopoverTitle>
           <PopoverDescription>
-            Slow down or break actions to watch optimistic updates roll back.
-            Only this browser is affected.
+            Delays or fails database writes only, like Priority changes, to
+            show optimistic updates and rollbacks.
           </PopoverDescription>
         </PopoverHeader>
         <Choice

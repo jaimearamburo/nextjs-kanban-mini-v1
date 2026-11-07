@@ -8,7 +8,15 @@ import {
   type TeamMember,
   type WriteResult,
 } from "./domain";
-import { setPriorityInput, taskId } from "./schemas";
+import { boardFilter, setPriorityInput, taskId } from "./schemas";
+
+/**
+ * Escapes LIKE wildcards, so search finds `%` and `_` as typed. Prisma's
+ * `contains` passes them through to Postgres, where `\` is the escape.
+ */
+function escapeLike(text: string) {
+  return text.replace(/[\\%_]/g, "\\$&");
+}
 
 const invalidInput = { ok: false, error: "Invalid input." } as const;
 const taskGone = { ok: false, error: "This Task no longer exists." } as const;
@@ -32,9 +40,37 @@ const boardTask = {
  */
 export function createBoard(db: Database) {
   return {
-    async getBoard(): Promise<Board> {
+    /**
+     * The Board, narrowed by its search params: a Task is shown if it has any
+     * of the Label Filter's Labels and matches the text search. Malformed
+     * params and unknown Labels are ignored.
+     */
+    async getBoard(searchParams?: unknown): Promise<Board> {
+      const filter = boardFilter.parse(searchParams);
+      const q = escapeLike(filter.q);
+      // Ids that aren't Labels are ignored, rather than matching nothing.
+      const knownLabelIds =
+        filter.labels.length === 0
+          ? []
+          : (
+              await db.label.findMany({
+                where: { id: { in: filter.labels } },
+                select: { id: true },
+              })
+            ).map(({ id }) => id);
       const tasks = await db.task.findMany({
-        where: { archivedAt: null },
+        where: {
+          archivedAt: null,
+          ...(knownLabelIds.length > 0 && {
+            labels: { some: { id: { in: knownLabelIds } } },
+          }),
+          ...(q && {
+            OR: [
+              { title: { contains: q, mode: "insensitive" } },
+              { description: { contains: q, mode: "insensitive" } },
+            ],
+          }),
+        },
         orderBy: [{ rank: "asc" }, { id: "asc" }],
         select: boardTask,
       });

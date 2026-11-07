@@ -9,3 +9,38 @@ export const taskId = z.uuid();
 export const priority = z.enum(PRIORITIES);
 
 export const setPriorityInput = z.object({ taskId, priority });
+
+/** A search param's string values; a repeated param (`?a=1&a=2`) has several. */
+function paramValues(value: unknown): string[] {
+  const values = Array.isArray(value) ? value : [value];
+  return values.filter((v): v is string => typeof v === "string");
+}
+
+/**
+ * The Board's search params, `?labels=` (comma-separated Label
+ * ids, as in `?labels=frontend,bug`) and `?q=` (text search).
+ * Never fails: anything malformed is dropped, leaving the Board unfiltered.
+ */
+export const boardFilter = z
+  .object({
+    // Sorted, so equivalent URLs (`bug,docs` and `docs,bug`) share a cache entry.
+    labels: z
+      .unknown()
+      .optional()
+      .transform((value) =>
+        [
+          ...new Set(
+            paramValues(value)
+              .flatMap((v) => v.split(","))
+              .filter((id) => /^[a-z0-9-]{1,32}$/.test(id)),
+          ),
+        ].sort(),
+      ),
+    q: z
+      .unknown()
+      .optional()
+      .transform((value) => paramValues(value)[0]?.trim() ?? ""),
+  })
+  .catch({ labels: [], q: "" });
+
+export type BoardFilter = z.output<typeof boardFilter>;
