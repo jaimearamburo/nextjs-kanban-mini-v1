@@ -9,7 +9,15 @@ import {
   type TeamMember,
   type WriteResult,
 } from "./domain";
-import { boardFilter, moveTaskInput, setPriorityInput, taskId } from "./schemas";
+import {
+  boardFilter,
+  moveTaskInput,
+  setAssigneeInput,
+  setLabelsInput,
+  setPriorityInput,
+  setStatusInput,
+  taskId,
+} from "./schemas";
 
 /**
  * Escapes LIKE wildcards, so search finds `%` and `_` as typed. Prisma's
@@ -144,6 +152,70 @@ export function createBoard(
         data: { priority },
       });
       if (count !== 1) return taskGone;
+      return { ok: true };
+    },
+    /** Sets a Task's Status from its detail, at the top of the new Status. */
+    async setStatus(guest: Guest, input: unknown): Promise<WriteResult> {
+      const parsed = setStatusInput.safeParse(input);
+      if (!parsed.success) return invalidInput;
+      const { taskId, status } = parsed.data;
+      const current = await db.task.findFirst({
+        where: { id: taskId, archivedAt: null },
+        select: { status: true },
+      });
+      if (!current) return taskGone;
+      if (current.status === status) return { ok: true };
+      const top = await db.task.findFirst({
+        where: { status, archivedAt: null },
+        orderBy: [{ rank: "asc" }, { id: "asc" }],
+        select: { rank: true },
+      });
+      const rank = generateNKeysBetween(null, top?.rank ?? null, RANK_CHOICES)[
+        Math.floor(random() * RANK_CHOICES)
+      ];
+      const { count } = await db.task.updateMany({
+        where: { id: taskId, archivedAt: null },
+        data: { status, rank },
+      });
+      if (count !== 1) return taskGone;
+      return { ok: true };
+    },
+    /** Assigns a Task to a Team Member on the roster, or unassigns it with null. */
+    async setAssignee(guest: Guest, input: unknown): Promise<WriteResult> {
+      const parsed = setAssigneeInput.safeParse(input);
+      if (!parsed.success) return invalidInput;
+      const { taskId, assigneeId } = parsed.data;
+      if (assigneeId !== null) {
+        const member = await db.teamMember.findUnique({
+          where: { id: assigneeId },
+          select: { id: true },
+        });
+        if (!member) return invalidInput;
+      }
+      const { count } = await db.task.updateMany({
+        where: { id: taskId, archivedAt: null },
+        data: { assigneeId },
+      });
+      if (count !== 1) return taskGone;
+      return { ok: true };
+    },
+    /** Replaces a Task's Labels with the final set given (ADR-0004). */
+    async setLabels(guest: Guest, input: unknown): Promise<WriteResult> {
+      const parsed = setLabelsInput.safeParse(input);
+      if (!parsed.success) return invalidInput;
+      const { taskId, labelIds } = parsed.data;
+      const known = await db.label.count({ where: { id: { in: labelIds } } });
+      if (known !== labelIds.length) return invalidInput;
+      try {
+        await db.task.update({
+          where: { id: taskId, archivedAt: null },
+          data: { labels: { set: labelIds.map((id) => ({ id })) } },
+        });
+      } catch (error) {
+        // P2025: no such Task. A relation write can't go through updateMany.
+        if ((error as { code?: string }).code === "P2025") return taskGone;
+        throw error;
+      }
       return { ok: true };
     },
     /**

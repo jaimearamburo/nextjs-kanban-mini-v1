@@ -12,6 +12,19 @@ export const status = z.enum(STATUSES);
 
 export const setPriorityInput = z.object({ taskId, priority });
 
+export const setStatusInput = z.object({ taskId, status });
+
+/** `null` unassigns. Whether the id is on the roster is checked by the Board module. */
+export const setAssigneeInput = z.object({ taskId, assigneeId: z.uuid().nullable() });
+
+const LABEL_ID = /^[a-z0-9-]{1,32}$/;
+
+/** The final set of Labels. Whether they're in the fixed set is checked by the Board module. */
+export const setLabelsInput = z.object({
+  taskId,
+  labelIds: z.array(z.string().regex(LABEL_ID)).transform((ids) => [...new Set(ids)]),
+});
+
 /**
  * A drop: the target Status and the cards the Task lands between, as the
  * dropping Guest sees them. `beforeId` is the card above (null at the top),
@@ -46,7 +59,7 @@ export const boardFilter = z
           ...new Set(
             paramValues(value)
               .flatMap((v) => v.split(","))
-              .filter((id) => /^[a-z0-9-]{1,32}$/.test(id)),
+              .filter((id) => LABEL_ID.test(id)),
           ),
         ].sort(),
       ),

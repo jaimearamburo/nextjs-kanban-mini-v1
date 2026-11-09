@@ -240,7 +240,9 @@ for (const [how, close] of [
     await expect(page.getByRole("dialog", { name: MODAL_BUG })).toBeVisible();
     // The filter stays shown behind the open Task.
     await expect(
-      page.getByRole("button", { name: "Bug", pressed: true, includeHidden: true }),
+      page
+        .getByRole("group", { name: "Filter by Label", includeHidden: true })
+        .getByRole("button", { name: "Bug", pressed: true, includeHidden: true }),
     ).toHaveCount(1);
     await close(page);
 

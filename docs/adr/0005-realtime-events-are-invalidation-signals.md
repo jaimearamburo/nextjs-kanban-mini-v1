@@ -1,6 +1,6 @@
 # Real-time events are invalidation signals, not data
 
-**Status: superseded.** Live sync was removed in #33, along with Ably. It added a third-party service, a token endpoint and a change event on every write, which was more than a demo Board with few simultaneous Guests needed. A Guest's own changes still show immediately through optimistic updates and `updateTag`; changes by other Guests appear the next time that browser loads or navigates to fresh data. The rest of this file is kept as the record of the decision.
+**Status: superseded.** Live sync was removed in #33, along with Ably. It added a third-party service, a token endpoint and a change event on every write, which was more than a demo Board with few simultaneous Guests needed. A Guest's own changes still show immediately through optimistic updates and fresh server reads (ADR-0008); changes by other Guests appear the next time that browser loads or navigates to fresh data. The rest of this file is kept as the record of the decision.
 
 Changes reach other browsers as small "Task X changed" events on an Ably Board channel, and each browser answers with `startTransition(() => router.refresh())`. That is a soft refresh: it keeps client state, scroll position and the open modal, and shows no Suspense fallbacks. Events carry identifiers only (the Task, the field, the acting Guest and the tab it came from), never data. The server stays the only source of truth, and there is no second client-side model to keep in sync.
 

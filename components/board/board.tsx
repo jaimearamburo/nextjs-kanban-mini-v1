@@ -6,10 +6,7 @@ export async function Board({
 }: {
   searchParams: PageProps<"/">["searchParams"];
 }) {
-  // Awaiting the search params renders the Board per request from the cached
-  // Board read, never baked into the prerendered shell. A shell prerender keeps
-  // its own copy of the Board that updateTag doesn't reliably expire, so a
-  // reload right after a write could show the old Board.
+  // Read per request, never baked into the prerendered shell (see getBoard).
   const board = await getBoard(await searchParams);
   return (
     <DraggableBoard

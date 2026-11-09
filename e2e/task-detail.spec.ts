@@ -23,15 +23,17 @@ function cardLink(page: Page, title: string) {
   return board(page).getByRole("article", { name: title }).getByRole("link", { name: title });
 }
 
-/** Asserts the Task detail shows the seeded Task's read-only fields. */
+/** Asserts the Task detail shows the seeded Task's fields. */
 async function expectSeededTask(detail: ReturnType<Page["getByRole"]>) {
   await expect(detail.getByRole("heading", { name: TITLE })).toBeVisible();
   await expect(detail.getByText(DESCRIPTION)).toBeVisible();
-  await expect(detail.getByText("In Review")).toBeVisible();
-  await expect(detail.getByText("Urgent")).toBeVisible();
-  await expect(detail.getByText("Sam Rivera")).toBeVisible();
-  await expect(detail.getByText("Bug")).toBeVisible();
-  await expect(detail.getByText("Frontend")).toBeVisible();
+  await expect(detail.getByRole("combobox", { name: "Status" })).toHaveValue("IN_REVIEW");
+  await expect(detail.getByRole("button", { name: "Priority: Urgent" })).toBeVisible();
+  await expect(
+    detail.getByRole("combobox", { name: "Assignee" }).locator("option:checked"),
+  ).toHaveText("Sam Rivera");
+  await expect(detail.getByRole("button", { name: "Bug", pressed: true })).toBeVisible();
+  await expect(detail.getByRole("button", { name: "Frontend", pressed: true })).toBeVisible();
   await expect(detail.getByRole("region", { name: "Comments" })).toBeVisible();
   await expect(detail.getByRole("region", { name: "Activity" })).toBeVisible();
 }
