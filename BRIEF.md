@@ -23,7 +23,6 @@ In general, our app should have these features and functionality:
 Extra functionality/nice to haves:
 - Ability to set order of how the tasks appear in each column via drag and drop (Jira style)
 - When dragging a task from one column to the other, user should be able to place the task in the order they want, and a visual indicator should appear where the task will be dropped (Jira style)
-- Real time updates (via Ably's websockets), if other users are browsing the kanban board, and another user updates the status of a task, it should update for the other users in real time
 - Other low-cost features that add polish (TBD)
 
 
@@ -38,7 +37,6 @@ Extra functionality/nice to haves:
 - Postgres
 - Prisma ORM
 - Vercel deployments
-- Ably (pub/sub) streaming websockets
 - shadcn/ui components for UI where possible
 
 ## Constraints

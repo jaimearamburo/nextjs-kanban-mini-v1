@@ -19,7 +19,7 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      testIgnore: /(drag-and-drop|live-sync)\.spec\.ts/,
+      testIgnore: /drag-and-drop\.spec\.ts/,
     },
     // Moves rearrange the seeded Board other specs read, so they run after them.
     {
@@ -27,13 +27,6 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
       testMatch: /drag-and-drop\.spec\.ts/,
       dependencies: ["chromium"],
-    },
-    // Live sync refreshes every open page on each write, so it runs alone, last.
-    {
-      name: "chromium-live",
-      use: { ...devices["Desktop Chrome"] },
-      testMatch: /live-sync\.spec\.ts/,
-      dependencies: ["chromium-moves"],
     },
   ],
   // A production build against the disposable `test` database, freshly seeded.

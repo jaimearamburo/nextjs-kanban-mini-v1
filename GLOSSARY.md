@@ -1,6 +1,6 @@
 # Kanban Mini
 
-A single, public, login-free kanban board where anyone can create and move tasks together in real time.
+A single, public, login-free kanban board where anyone can create and move tasks together.
 
 ## Board and work
 

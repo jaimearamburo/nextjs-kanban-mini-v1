@@ -3,19 +3,11 @@ import { wipeDatabase } from "@/lib/db/reset";
 import type { Priority, Status } from "@/lib/generated/prisma/enums";
 import { testDb } from "@/test/database";
 import { createBoard } from "./board";
-import type { BoardChange } from "./domain";
 
-/** The publish-change port's in-memory fake: what each write published. */
-let published: BoardChange[] = [];
-const publishChange = (change: BoardChange) => {
-  published.push(change);
-};
-
-const board = createBoard(testDb, { publishChange });
+const board = createBoard(testDb);
 
 beforeEach(async () => {
   await wipeDatabase(testDb);
-  published = [];
 });
 
 // Arrange-only fixtures: written straight to the database, because the Board
@@ -455,7 +447,7 @@ describe("moveTask", () => {
   test("drops into the same gap take different Ranks, so a later drop between them lands exactly there", async () => {
     // Each drop picks a Rank at random from several between its neighbours.
     const draws = [0.1, 0.9];
-    const jittered = createBoard(testDb, { publishChange, random: () => draws.shift() ?? 0.5 });
+    const jittered = createBoard(testDb, { random: () => draws.shift() ?? 0.5 });
     const a = await givenTask({ title: "A", rank: "a0" });
     const b = await givenTask({ title: "B", rank: "a1" });
     const x = await givenTask({ id: "00000000-0000-7000-8000-000000000001", title: "X", status: "DONE", rank: "a0" });
@@ -556,60 +548,5 @@ describe("moveTask", () => {
     const result = await board.moveTask(guest, { taskId: moving.id, status: "DONE", beforeId: null, afterId: null });
 
     expect(result).toEqual({ ok: false, error: "This Task no longer exists." });
-  });
-});
-
-describe("publishing changes", () => {
-  const origin = "tab-1";
-
-  test("a Priority change publishes exactly one event naming the Task, the field and the Guest", async () => {
-    const task = await givenTask({ title: "Triage me", rank: "a0" });
-    const guest = await givenGuest();
-
-    await board.setPriority(guest, { taskId: task.id, priority: "HIGH" }, origin);
-
-    expect(published).toEqual([
-      { taskId: task.id, field: "priority", guestId: guest.id, origin },
-    ]);
-  });
-
-  test("a move to another Status publishes one Status event; a reorder within it, one Rank event", async () => {
-    const moving = await givenTask({ title: "Moving", rank: "a0" });
-    const other = await givenTask({ title: "Other", rank: "a1" });
-    const guest = await givenGuest();
-
-    await board.moveTask(guest, { taskId: moving.id, status: "DONE", beforeId: null, afterId: null }, origin);
-    await board.moveTask(guest, { taskId: other.id, status: "TODO", beforeId: null, afterId: null }, null);
-
-    expect(published).toEqual([
-      { taskId: moving.id, field: "status", guestId: guest.id, origin },
-      { taskId: other.id, field: "rank", guestId: guest.id, origin: null },
-    ]);
-  });
-
-  test("failed writes publish nothing", async () => {
-    const task = await givenTask({ title: "Here", rank: "a0" });
-    const elsewhere = await givenTask({ title: "Elsewhere", status: "DONE", rank: "a0" });
-    const archived = await givenTask({ title: "Archived", rank: "a1", archived: true });
-    const guest = await givenGuest();
-
-    await board.setPriority(guest, { taskId: task.id, priority: "CRITICAL" }, origin);
-    await board.setPriority(guest, { taskId: archived.id, priority: "HIGH" }, origin);
-    await board.moveTask(guest, { taskId: task.id, status: "TODO", beforeId: elsewhere.id, afterId: null }, origin);
-    await board.moveTask(guest, { taskId: archived.id, status: "DONE", beforeId: null, afterId: null }, origin);
-    await board.moveTask(guest, { taskId: "not-a-task", status: "DONE", beforeId: null, afterId: null }, origin);
-
-    expect(published).toEqual([]);
-  });
-
-  test("an origin that isn't a short id is dropped, never published", async () => {
-    const task = await givenTask({ title: "Triage me", rank: "a0" });
-    const guest = await givenGuest();
-
-    await board.setPriority(guest, { taskId: task.id, priority: "HIGH" }, "x".repeat(500));
-
-    expect(published).toEqual([
-      { taskId: task.id, field: "priority", guestId: guest.id, origin: null },
-    ]);
   });
 });

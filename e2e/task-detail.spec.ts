@@ -73,9 +73,6 @@ test("only the title opens the Task: a click elsewhere on the card does nothing"
 });
 
 test("the Task opens instantly from a card, with no wait on the server", async ({ page }) => {
-  // Live sync off: another spec's write would refresh this page, and inside
-  // instant() that refresh is blocked until the scope ends.
-  await page.route("**/api/realtime/token", (route) => route.abort());
   await openBoard(page);
 
   // Inside instant(), only what was prefetched can show: anything the click
