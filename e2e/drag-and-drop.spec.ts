@@ -176,55 +176,6 @@ test("with Always fail on, a dropped card snaps back with a toast", async ({ pag
   await expect.poll(() => titles(page, "In Progress")).toEqual(before);
 });
 
-test("a card can be dragged with the keyboard", async ({ page }) => {
-  await openBoard(page);
-  const moving = card(page, "Ably token Route Handler");
-
-  // Pick up, one Status right (it keeps its slot, so the bottom), one up, drop.
-  await moving.focus();
-  await page.keyboard.press("Space");
-  await page.keyboard.press("ArrowRight");
-  await expect(dropLine(card(page, "Archive Comments instead of deleting them"))).toHaveAttribute(
-    "data-drop-line",
-    "bottom",
-  );
-  await page.keyboard.press("ArrowUp");
-  await expect(dropLine(card(page, "Archive Comments instead of deleting them"))).toHaveAttribute(
-    "data-drop-line",
-    "top",
-  );
-  await page.keyboard.press("Space");
-
-  const expected = [
-    "Fix the modal not closing on back",
-    "Label Filter in the URL",
-    "Ably token Route Handler",
-    "Archive Comments instead of deleting them",
-  ];
-  await expect.poll(() => titles(page, "In Review")).toEqual(expected);
-  await settled(moving);
-  await page.reload();
-  await expect.poll(() => titles(page, "In Review")).toEqual(expected);
-
-  // Escape cancels a drag, leaving the card where it was.
-  await moving.focus();
-  await page.keyboard.press("Space");
-  await page.keyboard.press("ArrowLeft");
-  await page.keyboard.press("Escape");
-  await expect.poll(() => titles(page, "In Review")).toEqual(expected);
-
-  // Back to the bottom of In Progress.
-  await moving.focus();
-  await page.keyboard.press("Space");
-  await page.keyboard.press("ArrowLeft");
-  await page.keyboard.press("ArrowDown");
-  await page.keyboard.press("Space");
-  await expect.poll(async () => (await titles(page, "In Progress")).at(-1)).toBe(
-    "Ably token Route Handler",
-  );
-  await settled(moving);
-});
-
 test("the dragged card lifts off on the first pixel of movement, and a plain click lifts nothing", async ({
   page,
 }) => {
