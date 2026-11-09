@@ -3,15 +3,11 @@
 import {
   DndContext,
   DragOverlay,
-  KeyboardSensor,
   MouseSensor,
   useDraggable,
   useSensor,
   useSensors,
-  type Announcements,
   type DragStartEvent,
-  type KeyboardCoordinateGetter,
-  type ScreenReaderInstructions,
 } from "@dnd-kit/core";
 import {
   memo,
@@ -29,7 +25,7 @@ import { toast } from "sonner";
 import { holdBoardRefreshes } from "@/components/realtime/board-refresh";
 import { moveTaskBetween } from "@/lib/board/actions";
 import { getTabOrigin } from "@/lib/realtime/tab-origin";
-import { STATUS_NAMES, STATUSES, type BoardTask } from "@/lib/board/domain";
+import type { BoardTask } from "@/lib/board/domain";
 import { cn } from "@/lib/utils";
 import { BoardColumn } from "./board-column";
 import { BoardLayout } from "./board-layout";
@@ -58,13 +54,6 @@ const MemoTaskCard = memo(TaskCard);
 function isOnControl(event: Event) {
   return event.target instanceof Element && event.target.closest("a, button") !== null;
 }
-
-const screenReaderInstructions: ScreenReaderInstructions = {
-  draggable:
-    "To move a Task, press Space or Enter. Use the up and down arrow keys to move it within a Status, " +
-    "and the left and right arrow keys to move it to another Status. " +
-    "Press Space or Enter again to drop it, or Escape to cancel.",
-};
 
 /**
  * The slot under a point: the nearest column, then which half of which card
@@ -103,20 +92,6 @@ function cardsIn(column: HTMLElement, activeId: string) {
   );
 }
 
-/** A point inside `slot` that `slotAt` maps back to it: the middle of its gap. */
-function pointIn(board: HTMLElement, slot: DropSlot, activeId: string): Point | null {
-  const column = board.querySelector<HTMLElement>(`section[data-status="${slot.status}"]`);
-  const list = column?.querySelector<HTMLElement>("[data-column-tasks]");
-  if (!column || !list) return null;
-  const rect = column.getBoundingClientRect();
-  const x = rect.left + rect.width / 2;
-  const cards = cardsIn(column, activeId);
-  if (cards.length === 0) return { x, y: list.getBoundingClientRect().top + 4 };
-  return slot.index < cards.length
-    ? { x, y: cards[slot.index].getBoundingClientRect().top - 4 }
-    : { x, y: cards[cards.length - 1].getBoundingClientRect().bottom + 4 };
-}
-
 /**
  * The Board's columns with drag and drop (ADR-0003). A drop shows a
  * Jira-style line where the card will land, and applies optimistically: the
@@ -133,7 +108,7 @@ export function DraggableBoard({
   const [active, setActive] = useState<BoardTask | null>(null);
   // Where the drop line shows: only where a drop would change something.
   const [shownDrop, setShownDrop] = useState<DropSlot | null>(null);
-  // Read by sensors, handlers and announcements, outside render.
+  // Read by the drag handlers, outside render.
   const dropRef = useRef<DropSlot | null>(null);
   const originRef = useRef<DropSlot | null>(null);
   const statusesRef = useRef(optimisticStatuses);
@@ -159,35 +134,6 @@ export function DraggableBoard({
     setShownDrop(isSameSlot(slot, originRef.current) ? null : slot);
   }, []);
 
-  // Arrow keys step the drop slot, and move the dragged card to show it.
-  const keyboardCoordinates = useCallback<KeyboardCoordinateGetter>(
-    (event, { active, context }) => {
-      const board = boardRef.current;
-      const from = dropRef.current ?? originRef.current;
-      if (!board || !from) return undefined;
-      const activeId = String(active);
-      const column = STATUSES.indexOf(from.status);
-      const step: Record<string, [number, number]> = {
-        ArrowUp: [0, -1],
-        ArrowDown: [0, 1],
-        ArrowLeft: [-1, 0],
-        ArrowRight: [1, 0],
-      };
-      if (!(event.code in step)) return undefined;
-      event.preventDefault();
-      const [dx, dy] = step[event.code];
-      const status = STATUSES[Math.min(Math.max(column + dx, 0), STATUSES.length - 1)];
-      const slots = otherTasks(statusesRef.current, status, activeId).length;
-      const slot = { status, index: Math.min(Math.max(from.index + dy, 0), slots) };
-      updateDrop(slot);
-      const point = pointIn(board, slot, activeId);
-      const rect = context.collisionRect;
-      if (!point || !rect) return undefined;
-      return { x: point.x - rect.width / 2, y: point.y - rect.height / 2 };
-    },
-    [updateDrop],
-  );
-
   // Stable options: a new object would make dnd-kit rebuild the sensors,
   // and with them every card's listeners, on each render.
   const mouseOptions = useMemo(
@@ -197,39 +143,10 @@ export function DraggableBoard({
     }),
     [],
   );
-  const keyboardOptions = useMemo(
-    () => ({ coordinateGetter: keyboardCoordinates }),
-    [keyboardCoordinates],
-  );
   const sensors = useSensors(
     // Mouse only: touch drags (long-press) are the mobile ticket's (ADR-0003).
     useSensor(MouseSensor, mouseOptions),
-    useSensor(KeyboardSensor, keyboardOptions),
   );
-
-  const titleOf = (id: string | number) =>
-    statusesRef.current.flatMap(({ tasks }) => tasks).find((task) => task.id === id)?.title ??
-    "the Task";
-
-  /** Where the drop would land, in words. */
-  function describeDrop(id: string | number) {
-    const slot = dropRef.current;
-    if (!slot || isSameSlot(slot, originRef.current)) return `${titleOf(id)} is in its original place.`;
-    const count = otherTasks(statusesRef.current, slot.status, String(id)).length + 1;
-    return `${titleOf(id)} is in ${STATUS_NAMES[slot.status]}, card ${slot.index + 1} of ${count}.`;
-  }
-
-  const announcements: Announcements = {
-    onDragStart: ({ active }) => `Picked up ${titleOf(active.id)}.`,
-    onDragMove: ({ active }) => describeDrop(active.id),
-    onDragOver: () => undefined,
-    onDragEnd: ({ active }) => {
-      const slot = dropRef.current;
-      if (!slot || isSameSlot(slot, originRef.current)) return `${titleOf(active.id)} was not moved.`;
-      return `Dropped ${titleOf(active.id)} in ${STATUS_NAMES[slot.status]}.`;
-    },
-    onDragCancel: ({ active }) => `Cancelled. ${titleOf(active.id)} was not moved.`,
-  };
 
   // A drag that starts and ends on the title must not then follow the link.
   const preventClick = useCallback((event: MouseEvent) => event.preventDefault(), []);
@@ -279,10 +196,6 @@ export function DraggableBoard({
       }
       window.addEventListener("mousemove", trackPointer, { capture: true });
       window.addEventListener("click", preventClick, { capture: true });
-    } else {
-      // Keyboard drags count from pickup.
-      holdRefreshes();
-      setActive(task);
     }
   }
 
@@ -320,7 +233,6 @@ export function DraggableBoard({
     <DndContext
       id="board"
       sensors={sensors}
-      accessibility={{ announcements, screenReaderInstructions }}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onDragCancel={endDrag}

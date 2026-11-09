@@ -12,7 +12,7 @@ Changes reach other browsers as small "Task X changed" events on an Ably Board c
 
 - **It skips events from its own tab.** Each tab sends a random origin id with its writes, and the event echoes it. Skipping by Guest instead would stop two tabs of the same Guest from syncing.
 - **It combines bursts.** The first event schedules one refresh shortly afterwards; events arriving in the meantime share it.
-- **It holds refreshes while a drag is in progress**, then runs one when the drag ends if any were held. A mouse drag counts only once it has moved, so a plain click on a card holds nothing back; a keyboard drag counts from pickup.
+- **It holds refreshes while a drag is in progress**, then runs one when the drag ends if any were held. A mouse drag counts only once it has moved, so a plain click on a card holds nothing back.
 - **It catches up after a reconnect that lost the channel's continuity**, with one refresh, because events may have been missed.
 
 ## Considered options

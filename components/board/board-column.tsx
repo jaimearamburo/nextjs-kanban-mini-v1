@@ -29,7 +29,7 @@ export function BoardColumn({
           {count}
         </span>
       </header>
-      <div data-column-tasks className="relative flex flex-col gap-2 px-2 pb-2">
+      <div className="relative flex flex-col gap-2 px-2 pb-2">
         {children}
       </div>
     </section>
