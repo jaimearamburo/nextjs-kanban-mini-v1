@@ -11,15 +11,12 @@ Nothing outside production may ever touch production services, and the database 
 
 ## Environments
 
-| Environment | Database | Ably app |
-|---|---|---|
-| Production (`main`) | Production database. Its URL exists only in Vercel's Production scope. | `kanban-prod` |
-| Local development and Vercel previews | The `dev` database, currently a free Neon branch. | `kanban-dev` |
-| Local integration tests | A disposable `test` database, currently a free Neon branch. | `kanban-dev` |
-| CI | A GitHub Actions Postgres service container. | `kanban-dev` |
-
-- Within the dev Ably app, channel names are scoped by git branch.
-- Separate Ably apps were chosen over one shared key with environment-prefixed channels. A shared key would put the production secret on dev machines, and its isolation would depend on every channel name being prefixed correctly.
+| Environment | Database |
+|---|---|
+| Production (`main`) | Production database. Its URL exists only in Vercel's Production scope. |
+| Local development and Vercel previews | The `dev` database, currently a free Neon branch. |
+| Local integration tests | A disposable `test` database, currently a free Neon branch. |
+| CI | A GitHub Actions Postgres service container. |
 
 ## Migrations
 
@@ -27,7 +24,7 @@ Only Production builds run `prisma migrate deploy`, so merging to `main` migrate
 
 ## Guards
 
-- A Zod-validated env module crashes at startup if any environment other than production is configured with the production database host (`PRODUCTION_DATABASE_HOST`, not secret) or the production Ably app ID, and if production is configured with anything else.
+- A Zod-validated env module crashes at startup if any environment other than production is configured with the production database host (`PRODUCTION_DATABASE_HOST`, not secret), and if production is configured with anything else.
 - The reset and seed scripts refuse the production host and require an explicit opt-in.
 
 ## Considered options

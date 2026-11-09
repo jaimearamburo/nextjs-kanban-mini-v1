@@ -51,7 +51,7 @@ test("clicking Priority updates instantly and the saved value survives a reload"
 
 test("rapid repeated clicks end on the last value shown", async ({ page }) => {
   await openBoard(page);
-  const task = card(page, "Ably token Route Handler");
+  const task = card(page, "Rate limit the Server Actions");
   const before = await shownPriority(task);
 
   for (let i = 0; i < 3; i++) await priorityButton(task).click();

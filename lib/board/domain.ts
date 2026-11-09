@@ -69,18 +69,3 @@ export type Board = { statuses: StatusTasks[] };
 
 /** What every Board write returns. */
 export type WriteResult = ActionResult;
-
-/**
- * "Task X changed": the event published after a write commits (ADR-0005).
- * Identifiers only, never data: clients refresh from the server. `origin`
- * is the browser tab that made the change, so that tab can skip it.
- */
-export type BoardChange = {
-  taskId: string;
-  field: "priority" | "status" | "rank";
-  guestId: string;
-  origin: string | null;
-};
-
-/** The Board module's "publish change" port: Ably in the app, a fake in tests. */
-export type PublishChange = (change: BoardChange) => void | Promise<void>;

@@ -13,7 +13,6 @@ import {
   memo,
   startTransition,
   useCallback,
-  useEffect,
   useLayoutEffect,
   useMemo,
   useOptimistic,
@@ -22,9 +21,7 @@ import {
   type ComponentProps,
 } from "react";
 import { toast } from "sonner";
-import { holdBoardRefreshes } from "@/components/realtime/board-refresh";
 import { moveTaskBetween } from "@/lib/board/actions";
-import { getTabOrigin } from "@/lib/realtime/tab-origin";
 import type { BoardTask } from "@/lib/board/domain";
 import { cn } from "@/lib/utils";
 import { BoardColumn } from "./board-column";
@@ -133,15 +130,6 @@ export function DraggableBoard({
   const pointerRef = useRef<Point | null>(null);
   const draggingRef = useRef<{ task: BoardTask; start: Point; moved: boolean } | null>(null);
   const frameRef = useRef<number | null>(null);
-  // Live refreshes wait while a drag is in progress (ADR-0005), from the
-  // moment it has moved: a plain click is a zero-distance drag and must not
-  // hold anything back. Released when the drag ends.
-  const releaseRefreshesRef = useRef<(() => void) | null>(null);
-  const holdRefreshes = useCallback(() => {
-    releaseRefreshesRef.current ??= holdBoardRefreshes();
-  }, []);
-  // Leaving the Board mid-drag mustn't hold refreshes back forever.
-  useEffect(() => () => releaseRefreshesRef.current?.(), []);
 
   const updateDrop = useCallback((slot: DropSlot | null) => {
     if (isSameSlot(slot, dropRef.current) || slot === dropRef.current) return;
@@ -175,7 +163,6 @@ export function DraggableBoard({
       pointerRef.current = point;
       if (!dragging.moved && (point.x !== dragging.start.x || point.y !== dragging.start.y)) {
         dragging.moved = true;
-        holdRefreshes();
         setActive(dragging.task);
       }
       if (frameRef.current !== null) return;
@@ -187,7 +174,7 @@ export function DraggableBoard({
         if (board && latest && current) updateDrop(slotAt(board, latest, current.task.id));
       });
     },
-    [updateDrop, holdRefreshes],
+    [updateDrop],
   );
 
   function handleDragStart({ active, activatorEvent }: DragStartEvent) {
@@ -206,7 +193,6 @@ export function DraggableBoard({
       const moved = isOnControl(activatorEvent);
       draggingRef.current = { task, start, moved };
       if (moved) {
-        holdRefreshes();
         setActive(task);
       }
       window.addEventListener("mousemove", trackPointer, { capture: true });
@@ -215,8 +201,6 @@ export function DraggableBoard({
   }
 
   function endDrag() {
-    releaseRefreshesRef.current?.();
-    releaseRefreshesRef.current = null;
     setActive(null);
     setShownDrop(null);
     draggingRef.current = null;
@@ -237,7 +221,7 @@ export function DraggableBoard({
     // optimistic move is the feedback).
     startTransition(async () => {
       applyOptimisticMove({ taskId, ...to });
-      const result = await moveTaskBetween(taskId, to, getTabOrigin());
+      const result = await moveTaskBetween(taskId, to);
       if (!result.ok) {
         toast.error("Couldn't move the Task", { description: result.error });
       }

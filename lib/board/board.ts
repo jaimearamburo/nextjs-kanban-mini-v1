@@ -4,14 +4,12 @@ import type { Guest } from "@/lib/guests/guests";
 import {
   STATUSES,
   type Board,
-  type BoardChange,
   type Label,
-  type PublishChange,
   type TaskDetail,
   type TeamMember,
   type WriteResult,
 } from "./domain";
-import { boardFilter, moveTaskInput, origin as originSchema, setPriorityInput, taskId } from "./schemas";
+import { boardFilter, moveTaskInput, setPriorityInput, taskId } from "./schemas";
 
 /**
  * Escapes LIKE wildcards, so search finds `%` and `_` as typed. Prisma's
@@ -63,26 +61,12 @@ const RANK_CHOICES = 16;
 
 /**
  * The Board module: every business rule for the one shared Board lives here.
- * Its dependencies are the database and the "publish change" port: after
- * every successful write commits, it publishes exactly one change event;
- * a failed write publishes nothing (ADR-0005).
+ * Its dependency is the database; `random` is replaceable for tests.
  */
 export function createBoard(
   db: Database,
-  {
-    publishChange,
-    random = Math.random,
-  }: { publishChange: PublishChange; random?: () => number },
+  { random = Math.random }: { random?: () => number } = {},
 ) {
-  async function published(
-    guest: Guest,
-    origin: unknown,
-    change: Pick<BoardChange, "taskId" | "field">,
-  ): Promise<WriteResult> {
-    await publishChange({ ...change, guestId: guest.id, origin: originSchema.parse(origin) });
-    return { ok: true };
-  }
-
   return {
     /**
      * The Board, narrowed by its search params: a Task is shown if it has any
@@ -149,10 +133,9 @@ export function createBoard(
     /**
      * Sets a Task's Priority to the final value given, never "cycle"
      * (ADR-0004), so concurrent identical clicks are idempotent. Like every
-     * write, it takes the acting Guest, whom Activity will name (#12), and
-     * the tab it came from (`origin`), which its change event carries.
+     * write, it takes the acting Guest, whom Activity will name (#12).
      */
-    async setPriority(guest: Guest, input: unknown, origin?: unknown): Promise<WriteResult> {
+    async setPriority(guest: Guest, input: unknown): Promise<WriteResult> {
       const parsed = setPriorityInput.safeParse(input);
       if (!parsed.success) return invalidInput;
       const { taskId, priority } = parsed.data;
@@ -161,7 +144,7 @@ export function createBoard(
         data: { priority },
       });
       if (count !== 1) return taskGone;
-      return published(guest, origin, { taskId, field: "priority" });
+      return { ok: true };
     },
     /**
      * Moves a Task to a Status, between the two cards it was dropped
@@ -169,14 +152,15 @@ export function createBoard(
      * between its neighbours' (ADR-0001). A Status change will record
      * Activity once Activity lands (#12); a reorder within a Status won't.
      */
-    async moveTask(guest: Guest, input: unknown, origin?: unknown): Promise<WriteResult> {
+    async moveTask(guest: Guest, input: unknown): Promise<WriteResult> {
       const parsed = moveTaskInput.safeParse(input);
       if (!parsed.success) return invalidInput;
       const { taskId, status, beforeId, afterId } = parsed.data;
-      // Read first, so the event can say whether the Status changed.
+      // Read first, so a Task that's gone is reported as gone, whatever its
+      // neighbours look like.
       const moving = await db.task.findFirst({
         where: { id: taskId, archivedAt: null },
-        select: { status: true },
+        select: { id: true },
       });
       if (!moving) return taskGone;
       const neighbourIds = [beforeId, afterId].filter((id) => id !== null);
@@ -205,10 +189,7 @@ export function createBoard(
         data: { status, rank },
       });
       if (count !== 1) return taskGone;
-      return published(guest, origin, {
-        taskId,
-        field: moving.status === status ? "rank" : "status",
-      });
+      return { ok: true };
     },
   };
 }

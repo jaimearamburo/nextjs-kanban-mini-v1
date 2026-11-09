@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
-import { BoardSync } from "@/components/realtime/board-sync";
 import { Toaster } from "@/components/ui/sonner";
 import { themeInitScript } from "@/lib/theme";
 import "./globals.css";
@@ -19,7 +17,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Kanban Mini",
   description:
-    "A real-time, login-free kanban Board built with Next.js and React.",
+    "A login-free kanban Board built with Next.js and React.",
 };
 
 export default function RootLayout({ children, modal }: LayoutProps<"/">) {
@@ -37,10 +35,6 @@ export default function RootLayout({ children, modal }: LayoutProps<"/">) {
         {children}
         {modal}
         <Toaster position="bottom-right" />
-        {/* Changes by other Guests appear live, on the Board and in Task detail. */}
-        <Suspense>
-          <BoardSync />
-        </Suspense>
       </body>
     </html>
   );

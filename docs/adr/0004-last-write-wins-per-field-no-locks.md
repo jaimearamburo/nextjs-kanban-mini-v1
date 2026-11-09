@@ -9,4 +9,4 @@ Concurrent edits by Guests are resolved last-write-wins for each field, which is
 
 ## Consequences
 
-Title and description edits can silently replace someone else's text. To make that visible, a "changed elsewhere" notice appears while a Guest is editing a field that another Guest has just saved.
+Title and description edits can silently replace someone else's text, with nothing to warn the Guest who was editing. That is an accepted trade-off.

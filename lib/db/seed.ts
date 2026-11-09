@@ -64,7 +64,7 @@ const tasksByStatus: Record<Status, SeedTask[]> = {
     {
       title: "Write the README and architecture overview",
       description:
-        "Explain the Board module, the caching strategy and how real-time invalidation works.",
+        "Explain the Board module, the caching strategy and how writes invalidate it.",
       priority: "LOW",
       labels: ["docs"],
       assignee: "Noah Lindqvist",
@@ -106,9 +106,9 @@ const tasksByStatus: Record<Status, SeedTask[]> = {
       assignee: "Sam Rivera",
     },
     {
-      title: "Ably token Route Handler",
+      title: "Rate limit the Server Actions",
       description:
-        "Issue short-lived Ably tokens with the Guest id as the client id. The API key never reaches the browser.",
+        "Cap how many writes one Guest can make per minute, so a script can't flood the public Board.",
       priority: "HIGH",
       labels: ["backend", "infra"],
       assignee: null,
