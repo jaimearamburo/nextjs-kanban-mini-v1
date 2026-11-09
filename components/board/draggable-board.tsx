@@ -56,6 +56,21 @@ function isOnControl(event: Event) {
 }
 
 /**
+ * Turns off dnd-kit's default screen-reader text, which would tell people to
+ * press the space bar to pick up a card (dragging is mouse only) and announce
+ * raw Task ids.
+ */
+const SILENT_DRAG = {
+  screenReaderInstructions: { draggable: "" },
+  announcements: {
+    onDragStart: () => undefined,
+    onDragOver: () => undefined,
+    onDragEnd: () => undefined,
+    onDragCancel: () => undefined,
+  },
+};
+
+/**
  * The slot under a point: the nearest column, then which half of which card
  * the point is over, ignoring the dragged card. Null outside the Board.
  */
@@ -233,6 +248,7 @@ export function DraggableBoard({
     <DndContext
       id="board"
       sensors={sensors}
+      accessibility={SILENT_DRAG}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onDragCancel={endDrag}
