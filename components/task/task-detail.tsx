@@ -1,14 +1,20 @@
 import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
-import { AssigneeAvatar } from "@/components/board/assignee-avatar";
-import { LabelBadge } from "@/components/board/label-badge";
-import { PriorityIcon } from "@/components/board/priority-icon";
-import { getTask, PRIORITY_NAMES, STATUS_NAMES } from "@/lib/board";
+import { PriorityButton } from "@/components/board/priority-button";
+import { getTask, listLabels, listTeamMembers, STATUS_NAMES, STATUSES } from "@/lib/board";
+import {
+  setTaskAssignee,
+  setTaskLabels,
+  setTaskPriority,
+  setTaskStatus,
+} from "@/lib/board/actions";
+import { FieldSelect } from "./field-select";
+import { LabelPicker } from "./label-picker";
 import { TaskDetailLayout } from "./task-detail-layout";
 import { TaskHeading, type TaskView } from "./task-heading";
 
 /**
- * A Task's read-only detail, shared by the modal and the full page. An
+ * A Task's detail, shared by the modal and the full page. An
  * unknown or Archived id shows the route's not-found state.
  */
 export async function TaskDetail({
@@ -18,7 +24,11 @@ export async function TaskDetail({
   id: string;
   view: TaskView;
 }) {
-  const task = await getTask(id);
+  const [task, labels, teamMembers] = await Promise.all([
+    getTask(id),
+    listLabels(),
+    listTeamMembers(),
+  ]);
   if (!task) notFound();
 
   return (
@@ -36,35 +46,38 @@ export async function TaskDetail({
       </TaskHeading>
 
       <dl className="grid grid-cols-[7rem_1fr] items-center gap-x-4 gap-y-3 text-sm">
-        <Field name="Status">{STATUS_NAMES[task.status]}</Field>
+        <Field name="Status">
+          <FieldSelect
+            name="Status"
+            value={task.status}
+            options={STATUSES.map((status) => ({ value: status, name: STATUS_NAMES[status] }))}
+            changeAction={setTaskStatus.bind(null, task.id)}
+          />
+        </Field>
         <Field name="Priority">
-          <span className="inline-flex items-center gap-1.5">
-            <PriorityIcon priority={task.priority} />
-            {PRIORITY_NAMES[task.priority]}
-          </span>
+          <PriorityButton
+            showName
+            priority={task.priority}
+            changeAction={setTaskPriority.bind(null, task.id)}
+          />
         </Field>
         <Field name="Assignee">
-          <span className="inline-flex items-center gap-2">
-            <AssigneeAvatar assignee={task.assignee} />
-            {task.assignee ? (
-              task.assignee.name
-            ) : (
-              <span className="text-muted-foreground">Unassigned</span>
-            )}
-          </span>
+          <FieldSelect
+            name="Assignee"
+            value={task.assignee?.id ?? ""}
+            options={[
+              { value: "", name: "Unassigned" },
+              ...teamMembers.map((member) => ({ value: member.id, name: member.name })),
+            ]}
+            changeAction={setTaskAssignee.bind(null, task.id)}
+          />
         </Field>
         <Field name="Labels">
-          {task.labels.length === 0 ? (
-            <span className="text-muted-foreground">None</span>
-          ) : (
-            <ul className="flex flex-wrap gap-1" aria-label="Labels">
-              {task.labels.map((label) => (
-                <li key={label.id}>
-                  <LabelBadge label={label} />
-                </li>
-              ))}
-            </ul>
-          )}
+          <LabelPicker
+            labels={labels}
+            selected={task.labels.map((label) => label.id)}
+            changeAction={setTaskLabels.bind(null, task.id)}
+          />
         </Field>
       </dl>
 

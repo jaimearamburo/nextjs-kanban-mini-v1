@@ -1,5 +1,4 @@
-/** Cache tags for Board reads. Writes call `updateTag` on the ones they affect. */
+/** Cache tags for Task reads. Writes call `updateTag` on the Task they affect. */
 export const cacheTags = {
-  board: "board",
   task: (id: string) => `task:${id}`,
 } as const;

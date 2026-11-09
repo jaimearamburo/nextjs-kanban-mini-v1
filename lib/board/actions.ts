@@ -2,26 +2,49 @@
 
 import { updateTag } from "next/cache";
 import { runDemoControls } from "@/lib/demo";
-import { requireGuest } from "@/lib/guests";
+import { requireGuest, type Guest } from "@/lib/guests";
 import { cacheTags } from "./cache-tags";
-import type { Priority, WriteResult } from "./domain";
-import { moveTask, setPriority } from "./index";
+import type { Priority, Status, WriteResult } from "./domain";
+import { getTask, moveTask, setAssignee, setLabels, setPriority, setStatus } from "./index";
 import type { MoveTaskInput } from "./schemas";
 
-/** Sets a Task's Priority to the final value the Guest sees (ADR-0004). */
-export async function setTaskPriority(
+/** The standard Server Action: Guest, demo controls, the write, then the Task's cache tag. */
+async function writeTask(
   taskId: string,
-  priority: Priority,
+  write: (guest: Guest) => Promise<WriteResult>,
 ): Promise<WriteResult> {
   const guest = await requireGuest();
   const demo = await runDemoControls();
   if (!demo.ok) return demo;
-  const result = await setPriority(guest, { taskId, priority });
+  const result = await write(guest);
   if (result.ok) {
-    updateTag(cacheTags.board);
     updateTag(cacheTags.task(taskId));
+    // Refills the Task's cache entry now, so the old one can't be served (ADR-0008).
+    await getTask(taskId);
   }
   return result;
+}
+
+/** Sets a Task's Priority to the final value the Guest sees (ADR-0004). */
+export async function setTaskPriority(taskId: string, priority: Priority) {
+  return writeTask(taskId, (guest) => setPriority(guest, { taskId, priority }));
+}
+
+/** Sets a Task's Status, putting it at the top of the new Status. */
+export async function setTaskStatus(taskId: string, status: Status) {
+  return writeTask(taskId, (guest) => setStatus(guest, { taskId, status }));
+}
+
+/** Sets a Task's Assignee; an empty id (the select's "Unassigned") unassigns. */
+export async function setTaskAssignee(taskId: string, assigneeId: string) {
+  return writeTask(taskId, (guest) =>
+    setAssignee(guest, { taskId, assigneeId: assigneeId === "" ? null : assigneeId }),
+  );
+}
+
+/** Sets a Task's Labels to the final set the Guest sees (ADR-0004). */
+export async function setTaskLabels(taskId: string, labelIds: string[]) {
+  return writeTask(taskId, (guest) => setLabels(guest, { taskId, labelIds }));
 }
 
 /**
@@ -29,17 +52,6 @@ export async function setTaskPriority(
  * Guest saw them: `beforeId` above it (null at the top), `afterId` below it
  * (null at the bottom).
  */
-export async function moveTaskBetween(
-  taskId: string,
-  move: Omit<MoveTaskInput, "taskId">,
-): Promise<WriteResult> {
-  const guest = await requireGuest();
-  const demo = await runDemoControls();
-  if (!demo.ok) return demo;
-  const result = await moveTask(guest, { taskId, ...move });
-  if (result.ok) {
-    updateTag(cacheTags.board);
-    updateTag(cacheTags.task(taskId));
-  }
-  return result;
+export async function moveTaskBetween(taskId: string, move: Omit<MoveTaskInput, "taskId">) {
+  return writeTask(taskId, (guest) => moveTask(guest, { taskId, ...move }));
 }

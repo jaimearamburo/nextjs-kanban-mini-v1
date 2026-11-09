@@ -550,3 +550,196 @@ describe("moveTask", () => {
     expect(result).toEqual({ ok: false, error: "This Task no longer exists." });
   });
 });
+
+describe("setStatus", () => {
+  test("puts the Task at the top of its new Status", async () => {
+    const task = await givenTask({ title: "Moving", status: "TODO", rank: "a0" });
+    await givenTask({ title: "Was first", status: "DONE", rank: "a1" });
+    await givenTask({ title: "Was second", status: "DONE", rank: "a2" });
+    const guest = await givenGuest();
+
+    const result = await board.setStatus(guest, { taskId: task.id, status: "DONE" });
+
+    expect(result).toEqual({ ok: true });
+    const { statuses } = await board.getBoard();
+    expect(titlesByStatus(statuses)).toEqual([
+      ["TODO", []],
+      ["IN_PROGRESS", []],
+      ["IN_REVIEW", []],
+      ["DONE", ["Moving", "Was first", "Was second"]],
+    ]);
+  });
+
+  test("leaves a Task where it is when the Status is the one it already has", async () => {
+    await givenTask({ title: "First", status: "TODO", rank: "a0" });
+    const second = await givenTask({ title: "Second", status: "TODO", rank: "a1" });
+    const guest = await givenGuest();
+
+    const result = await board.setStatus(guest, { taskId: second.id, status: "TODO" });
+
+    expect(result).toEqual({ ok: true });
+    const { statuses } = await board.getBoard();
+    expect(statuses[0].tasks.map((task) => task.title)).toEqual(["First", "Second"]);
+  });
+
+  test("rejects a Status outside the fixed set at the Zod boundary", async () => {
+    const task = await givenTask({ title: "Unchanged", status: "TODO", rank: "a0" });
+    const guest = await givenGuest();
+
+    const result = await board.setStatus(guest, { taskId: task.id, status: "BLOCKED" });
+
+    expect(result).toEqual({ ok: false, error: "Invalid input." });
+  });
+
+  test("refuses an Archived Task", async () => {
+    const task = await givenTask({ title: "Archived", rank: "a0", archived: true });
+    const guest = await givenGuest();
+
+    const result = await board.setStatus(guest, { taskId: task.id, status: "DONE" });
+
+    expect(result).toEqual({ ok: false, error: "This Task no longer exists." });
+  });
+});
+
+function givenTeamMember(name: string, position: number) {
+  return testDb.teamMember.create({ data: { name, color: "sky", position } });
+}
+
+function givenLabels() {
+  return testDb.label.createMany({
+    data: [
+      { id: "bug", name: "Bug", color: "red", position: 0 },
+      { id: "docs", name: "Docs", color: "amber", position: 1 },
+    ],
+  });
+}
+
+describe("setAssignee", () => {
+  test("assigns a Team Member from the roster", async () => {
+    const task = await givenTask({ title: "Needs an owner", rank: "a0" });
+    const member = await givenTeamMember("Sam Rivera", 0);
+    const guest = await givenGuest();
+
+    const result = await board.setAssignee(guest, { taskId: task.id, assigneeId: member.id });
+
+    expect(result).toEqual({ ok: true });
+    expect((await board.getTask(task.id))?.assignee?.name).toBe("Sam Rivera");
+  });
+
+  test("unassigns with null", async () => {
+    const member = await givenTeamMember("Sam Rivera", 0);
+    const task = await givenTask({ title: "Owned", rank: "a0" });
+    const guest = await givenGuest();
+    await board.setAssignee(guest, { taskId: task.id, assigneeId: member.id });
+
+    const result = await board.setAssignee(guest, { taskId: task.id, assigneeId: null });
+
+    expect(result).toEqual({ ok: true });
+    expect((await board.getTask(task.id))?.assignee).toBeNull();
+  });
+
+  test.each([
+    ["a malformed id", "not-a-uuid"],
+    ["an id off the roster", "00000000-0000-7000-8000-000000000009"],
+  ])("rejects %s", async (_name, assigneeId) => {
+    const task = await givenTask({ title: "Unchanged", rank: "a0" });
+    const guest = await givenGuest();
+
+    const result = await board.setAssignee(guest, { taskId: task.id, assigneeId });
+
+    expect(result).toEqual({ ok: false, error: "Invalid input." });
+    expect((await board.getTask(task.id))?.assignee).toBeNull();
+  });
+
+  test("refuses an Archived Task", async () => {
+    const task = await givenTask({ title: "Archived", rank: "a0", archived: true });
+    const guest = await givenGuest();
+
+    const result = await board.setAssignee(guest, { taskId: task.id, assigneeId: null });
+
+    expect(result).toEqual({ ok: false, error: "This Task no longer exists." });
+  });
+});
+
+describe("setLabels", () => {
+  test("replaces the Task's Labels with the final set given", async () => {
+    await givenLabels();
+    const task = await givenTask({ title: "Relabel", rank: "a0", labels: ["bug"] });
+    const guest = await givenGuest();
+
+    const result = await board.setLabels(guest, { taskId: task.id, labelIds: ["docs"] });
+
+    expect(result).toEqual({ ok: true });
+    expect((await board.getTask(task.id))?.labels.map((label) => label.id)).toEqual(["docs"]);
+  });
+
+  test("clears every Label with an empty set", async () => {
+    await givenLabels();
+    const task = await givenTask({ title: "Relabel", rank: "a0", labels: ["bug", "docs"] });
+    const guest = await givenGuest();
+
+    await board.setLabels(guest, { taskId: task.id, labelIds: [] });
+
+    expect((await board.getTask(task.id))?.labels).toEqual([]);
+  });
+
+  test.each([
+    ["a malformed id", "NOT A LABEL"],
+    ["an id outside the fixed set", "wontfix"],
+  ])("rejects %s", async (_name, labelId) => {
+    await givenLabels();
+    const task = await givenTask({ title: "Unchanged", rank: "a0", labels: ["bug"] });
+    const guest = await givenGuest();
+
+    const result = await board.setLabels(guest, { taskId: task.id, labelIds: ["docs", labelId] });
+
+    expect(result).toEqual({ ok: false, error: "Invalid input." });
+    expect((await board.getTask(task.id))?.labels.map((label) => label.id)).toEqual(["bug"]);
+  });
+
+  test("refuses an Archived Task", async () => {
+    await givenLabels();
+    const task = await givenTask({ title: "Archived", rank: "a0", archived: true });
+    const guest = await givenGuest();
+
+    const result = await board.setLabels(guest, { taskId: task.id, labelIds: ["bug"] });
+
+    expect(result).toEqual({ ok: false, error: "This Task no longer exists." });
+  });
+});
+
+describe("last write wins per field", () => {
+  test("a later write to a field replaces an earlier one", async () => {
+    const task = await givenTask({ title: "Contested", rank: "a0" });
+    const first = await givenTeamMember("Sam Rivera", 0);
+    const second = await givenTeamMember("Ava Moreau", 1);
+    const guest = await givenGuest();
+
+    await board.setAssignee(guest, { taskId: task.id, assigneeId: first.id });
+    await board.setAssignee(guest, { taskId: task.id, assigneeId: second.id });
+
+    expect((await board.getTask(task.id))?.assignee?.name).toBe("Ava Moreau");
+  });
+
+  test("simultaneous writes to different fields all land", async () => {
+    await givenLabels();
+    const task = await givenTask({ title: "Busy", status: "TODO", rank: "a0" });
+    const member = await givenTeamMember("Sam Rivera", 0);
+    const guest = await givenGuest();
+
+    const results = await Promise.all([
+      board.setStatus(guest, { taskId: task.id, status: "DONE" }),
+      board.setPriority(guest, { taskId: task.id, priority: "HIGH" }),
+      board.setAssignee(guest, { taskId: task.id, assigneeId: member.id }),
+      board.setLabels(guest, { taskId: task.id, labelIds: ["bug"] }),
+    ]);
+
+    expect(results).toEqual(Array(4).fill({ ok: true }));
+    expect(await board.getTask(task.id)).toMatchObject({
+      status: "DONE",
+      priority: "HIGH",
+      assignee: { name: "Sam Rivera" },
+      labels: [{ id: "bug" }],
+    });
+  });
+});
