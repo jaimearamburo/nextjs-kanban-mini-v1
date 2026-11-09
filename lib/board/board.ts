@@ -4,12 +4,15 @@ import type { Guest } from "@/lib/guests/guests";
 import {
   STATUSES,
   type Board,
+  type Comment,
   type Label,
   type TaskDetail,
   type TeamMember,
   type WriteResult,
 } from "./domain";
 import {
+  addCommentInput,
+  archiveCommentInput,
   boardFilter,
   moveTaskInput,
   setAssigneeInput,
@@ -261,6 +264,53 @@ export function createBoard(
         data: { status, rank },
       });
       if (count !== 1) return taskGone;
+      return { ok: true };
+    },
+    /** A Task's Comments, oldest first. Empty for an unknown, malformed or Archived id. */
+    async listComments(id: unknown): Promise<Comment[]> {
+      const parsed = taskId.safeParse(id);
+      if (!parsed.success) return [];
+      const comments = await db.comment.findMany({
+        where: { taskId: parsed.data, archivedAt: null, task: { archivedAt: null } },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        select: {
+          id: true,
+          body: true,
+          createdAt: true,
+          authorGuest: { select: summary },
+          authorTeamMember: { select: summary },
+        },
+      });
+      return comments.map(({ authorGuest, authorTeamMember, ...comment }) => ({
+        ...comment,
+        // Exactly one author is set (CHECK constraint).
+        author: (authorGuest ?? authorTeamMember)!,
+      }));
+    },
+    /** Adds a Guest's Comment to a Task. */
+    async addComment(guest: Guest, input: unknown): Promise<WriteResult> {
+      const parsed = addCommentInput.safeParse(input);
+      if (!parsed.success) return invalidInput;
+      const { taskId, body } = parsed.data;
+      const task = await db.task.findFirst({
+        where: { id: taskId, archivedAt: null },
+        select: { id: true },
+      });
+      if (!task) return taskGone;
+      await db.comment.create({ data: { taskId, body, authorGuestId: guest.id } });
+      return { ok: true };
+    },
+    /**
+     * Archives a Comment, keeping its row (ADR-0002). Any Guest can archive
+     * any Comment, and a Comment already archived is left as it is.
+     */
+    async archiveComment(guest: Guest, input: unknown): Promise<WriteResult> {
+      const parsed = archiveCommentInput.safeParse(input);
+      if (!parsed.success) return invalidInput;
+      await db.comment.updateMany({
+        where: { id: parsed.data.commentId, archivedAt: null },
+        data: { archivedAt: new Date() },
+      });
       return { ok: true };
     },
   };

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PRIORITIES, STATUSES } from "./domain";
+import { COMMENT_MAX_LENGTH, PRIORITIES, STATUSES } from "./domain";
 
 // Shared Zod schemas for every Board input, reads and writes alike. The Board
 // module parses with them at its boundary; the client can reuse them for form errors.
@@ -36,6 +36,19 @@ export const moveTaskInput = z.object({
   beforeId: taskId.nullable(),
   afterId: taskId.nullable(),
 });
+
+export const addCommentInput = z.object({
+  taskId,
+  body: z
+    .string()
+    .trim()
+    .min(1)
+    .max(COMMENT_MAX_LENGTH)
+    // Postgres text can't store a NUL byte: it would throw instead of being refused.
+    .refine((body) => !body.includes("\0")),
+});
+
+export const archiveCommentInput = z.object({ commentId: z.uuid() });
 
 /** A search param's string values; a repeated param (`?a=1&a=2`) has several. */
 function paramValues(value: unknown): string[] {

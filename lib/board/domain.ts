@@ -67,5 +67,14 @@ export type StatusTasks = { status: Status; tasks: BoardTask[] };
 /** Every Status in workflow order, each with its Tasks in Rank order. */
 export type Board = { statuses: StatusTasks[] };
 
+/** The longest Comment a Guest can add. */
+export const COMMENT_MAX_LENGTH = 1000;
+
+/** A Guest, or a Team Member on seeded Comments. */
+export type CommentAuthor = { id: string; name: string; color: string };
+
+/** A Comment as its Task shows it. Never an Archived Comment. */
+export type Comment = { id: string; body: string; createdAt: Date; author: CommentAuthor };
+
 /** What every Board write returns. */
 export type WriteResult = ActionResult;
