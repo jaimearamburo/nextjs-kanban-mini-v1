@@ -49,3 +49,10 @@ export const setLabels = board.setLabels;
 
 /** Moves a Task between two cards. Server Actions call this, then update the Task's cache tag. */
 export const moveTask = board.moveTask;
+
+/** A Task's Comments. Uncached, so call it inside Suspense. */
+export const listComments = board.listComments;
+
+/** Comment writes. Server Actions call these, then refresh the router. */
+export const addComment = board.addComment;
+export const archiveComment = board.archiveComment;

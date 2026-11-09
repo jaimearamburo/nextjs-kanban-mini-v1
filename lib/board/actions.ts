@@ -1,11 +1,20 @@
 "use server";
 
-import { updateTag } from "next/cache";
+import { refresh, updateTag } from "next/cache";
 import { runDemoControls } from "@/lib/demo";
 import { requireGuest, type Guest } from "@/lib/guests";
 import { cacheTags } from "./cache-tags";
 import type { Priority, Status, WriteResult } from "./domain";
-import { getTask, moveTask, setAssignee, setLabels, setPriority, setStatus } from "./index";
+import {
+  addComment,
+  archiveComment,
+  getTask,
+  moveTask,
+  setAssignee,
+  setLabels,
+  setPriority,
+  setStatus,
+} from "./index";
 import type { MoveTaskInput } from "./schemas";
 
 /** The standard Server Action: Guest, demo controls, the write, then the Task's cache tag. */
@@ -54,4 +63,24 @@ export async function setTaskLabels(taskId: string, labelIds: string[]) {
  */
 export async function moveTaskBetween(taskId: string, move: Omit<MoveTaskInput, "taskId">) {
   return writeTask(taskId, (guest) => moveTask(guest, { taskId, ...move }));
+}
+
+/** The Comment Server Action: Comments are uncached, so it refreshes rather than updates a tag. */
+async function writeComment(write: (guest: Guest) => Promise<WriteResult>): Promise<WriteResult> {
+  const guest = await requireGuest();
+  const demo = await runDemoControls();
+  if (!demo.ok) return demo;
+  const result = await write(guest);
+  if (result.ok) refresh();
+  return result;
+}
+
+/** Adds the Guest's Comment to a Task. */
+export async function addTaskComment(taskId: string, body: string) {
+  return writeComment((guest) => addComment(guest, { taskId, body }));
+}
+
+/** Archives a Comment, whoever wrote it (ADR-0002). */
+export async function archiveTaskComment(commentId: string) {
+  return writeComment((guest) => archiveComment(guest, { commentId }));
 }

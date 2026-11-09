@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { notFound } from "next/navigation";
 import { PriorityButton } from "@/components/board/priority-button";
 import { getTask, listLabels, listTeamMembers, STATUS_NAMES, STATUSES } from "@/lib/board";
@@ -8,6 +8,7 @@ import {
   setTaskPriority,
   setTaskStatus,
 } from "@/lib/board/actions";
+import { Comments, CommentsSkeleton } from "./comments";
 import { FieldSelect } from "./field-select";
 import { LabelPicker } from "./label-picker";
 import { TaskDetailLayout } from "./task-detail-layout";
@@ -89,7 +90,9 @@ export async function TaskDetail({
         )}
       </Section>
       <Section title="Comments">
-        <p className="text-sm text-muted-foreground">Comments will appear here.</p>
+        <Suspense fallback={<CommentsSkeleton />}>
+          <Comments taskId={task.id} />
+        </Suspense>
       </Section>
     </TaskDetailLayout>
   );
