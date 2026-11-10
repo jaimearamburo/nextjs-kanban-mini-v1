@@ -23,8 +23,8 @@ The Board, measured on 10 November 2026 with Lighthouse 12.8.
 
 | | Performance | Accessibility | CLS |
 |---|---|---|---|
-| Mobile | 86 | 100 | 0.003 |
-| Desktop | 100 | 100 | 0 |
+| Mobile | 90 | 100 | 0 |
+| Desktop | 99 | 100 | 0 |
 
 ## Environments
 
