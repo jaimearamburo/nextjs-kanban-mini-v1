@@ -19,7 +19,7 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      testIgnore: /(drag-and-drop|move-to|task-edit|create-task)\.spec\.ts/,
+      testIgnore: /(drag-and-drop|move-to|touch-drag|task-edit|create-task)\.spec\.ts/,
     },
     // Moves rearrange the seeded Board other specs read, so they run after them.
     {
@@ -35,12 +35,19 @@ export default defineConfig({
       testMatch: /move-to\.spec\.ts/,
       dependencies: ["chromium-moves"],
     },
+    // Long-press dragging on a phone moves seeded cards as well.
+    {
+      name: "mobile-drag",
+      use: { ...devices["Pixel 7"] },
+      testMatch: /touch-drag\.spec\.ts/,
+      dependencies: ["mobile-moves"],
+    },
     // Task detail edits change the seeded Tasks the moves arrange, so they run last.
     {
       name: "chromium-edits",
       use: { ...devices["Desktop Chrome"] },
       testMatch: /task-edit\.spec\.ts/,
-      dependencies: ["mobile-moves"],
+      dependencies: ["mobile-drag"],
     },
     // Creates add Tasks to the seeded Board other specs count, so they run after all of them.
     {
