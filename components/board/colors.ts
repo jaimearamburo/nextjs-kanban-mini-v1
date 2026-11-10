@@ -24,19 +24,20 @@ const labelDotColors: Record<string, string> = {
   slate: "bg-slate-500",
 };
 
+// The 700 shades: white initials on each meet WCAG AA (4.5:1) in both themes.
 const avatarColors: Record<string, string> = {
-  violet: "bg-violet-600 text-white",
-  emerald: "bg-emerald-600 text-white",
-  rose: "bg-rose-600 text-white",
-  sky: "bg-sky-600 text-white",
-  orange: "bg-orange-600 text-white",
-  teal: "bg-teal-600 text-white",
-  indigo: "bg-indigo-600 text-white",
+  violet: "bg-violet-700 text-white",
+  emerald: "bg-emerald-700 text-white",
+  rose: "bg-rose-700 text-white",
+  sky: "bg-sky-700 text-white",
+  orange: "bg-orange-700 text-white",
+  teal: "bg-teal-700 text-white",
+  indigo: "bg-indigo-700 text-white",
   pink: "bg-pink-700 text-white",
   amber: "bg-amber-700 text-white",
   lime: "bg-lime-700 text-white",
   cyan: "bg-cyan-700 text-white",
-  fuchsia: "bg-fuchsia-600 text-white",
+  fuchsia: "bg-fuchsia-700 text-white",
 };
 
 export function labelColorClass(color: string): string {

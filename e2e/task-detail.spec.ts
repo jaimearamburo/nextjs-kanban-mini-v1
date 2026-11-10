@@ -1,5 +1,5 @@
 import { instant } from "@next/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type Request } from "@playwright/test";
 
 // Runs against a production build on the freshly seeded `test` database.
 // These tests only read, so they can share seeded Tasks.
@@ -8,6 +8,8 @@ const TITLE = "Fix the modal not closing on back";
 const DESCRIPTION =
   "Pressing the browser back button should close the Task modal and return to the Board as it was.";
 const TASK_URL = /\/tasks\/[0-9a-f-]{36}$/;
+/** A Task's pathname alone, as a request's URL is matched once parsed. */
+const TASK_PATHNAME = /^\/tasks\/[0-9a-f-]{36}$/;
 
 /** Opens the Board and waits until it has hydrated, so card clicks are client-side. */
 async function openBoard(page: Page) {
@@ -73,8 +75,57 @@ test("only the title opens the Task: a click elsewhere on the card does nothing"
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
+/** Whether a request is a router prefetch of a Task's detail. */
+function isTaskPrefetch(request: Request) {
+  return (
+    request.headers()["next-router-prefetch"] !== undefined &&
+    TASK_PATHNAME.test(new URL(request.url()).pathname)
+  );
+}
+
+/** Hovers a card and waits until the prefetches that starts have all finished. */
+async function hoverAndAwaitPrefetch(page: Page, title: string) {
+  let started = 0;
+  let settled = 0;
+  const onStart = (request: Request) => isTaskPrefetch(request) && started++;
+  const onSettle = (request: Request) => isTaskPrefetch(request) && settled++;
+  page.on("request", onStart);
+  page.on("requestfinished", onSettle);
+  page.on("requestfailed", onSettle);
+  try {
+    await cardLink(page, title).hover();
+    // The prefetches run one after another, so settled must stay caught up a while.
+    for (let calm = 0; calm < 3; ) {
+      await page.waitForTimeout(150);
+      calm = started > 0 && settled === started ? calm + 1 : 0;
+    }
+  } finally {
+    page.off("request", onStart);
+    page.off("requestfinished", onSettle);
+    page.off("requestfailed", onSettle);
+  }
+}
+
+test("only a card the pointer is over prefetches its Task", async ({ page }) => {
+  const prefetched: string[] = [];
+  page.on("request", (request) => {
+    if (isTaskPrefetch(request)) prefetched.push(new URL(request.url()).pathname);
+  });
+  await openBoard(page);
+  // Time for viewport prefetches to start, if any did.
+  await page.waitForTimeout(1000);
+  expect(prefetched).toEqual([]);
+
+  const href = await cardLink(page, TITLE).getAttribute("href");
+  await hoverAndAwaitPrefetch(page, TITLE);
+  expect(prefetched.length).toBeGreaterThan(0);
+  expect(new Set(prefetched)).toEqual(new Set([href]));
+});
+
 test("the Task opens instantly from a card, with no wait on the server", async ({ page }) => {
   await openBoard(page);
+  // A card prefetches its Task on intent: a person's pointer is over it first.
+  await hoverAndAwaitPrefetch(page, TITLE);
 
   // Inside instant(), only what was prefetched can show: anything the click
   // still had to fetch from the server stays blocked until the scope ends.
@@ -110,15 +161,28 @@ for (const { viewport, panelWidth } of [
       expect(box.y).toBe(header!.y + header!.height);
       expect(box.y + box.height).toBe(800);
     }).toPass();
-    // The Board behind is dimmed and very lightly blurred.
+    // The Board behind is dimmed and blurred only enough that its card
+    // titles stay readable.
     await expect(page.locator(".fixed[role=presentation]")).toHaveCSS(
       "backdrop-filter",
-      "blur(2px)",
+      "blur(1px)",
     );
     // The panel scrolls on its own; the Board behind it doesn't move.
     expect(await panel.evaluate((el) => getComputedStyle(el).overflowY)).toBe("auto");
   });
 }
+
+test("the brand in the header goes back to the Board", async ({ page }) => {
+  await openBoard(page);
+  const href = await cardLink(page, TITLE).getAttribute("href");
+  await page.goto(href!);
+  await expect(page.getByRole("heading", { level: 1, name: TITLE })).toBeVisible();
+
+  await page.getByRole("banner").getByRole("link", { name: "Kanban Mini" }).click();
+
+  await expect(page).toHaveURL(/\/$/);
+  await expect(board(page).getByRole("article", { name: TITLE })).toBeVisible();
+});
 
 test("loading or refreshing a Task URL shows the full Task page", async ({ page }) => {
   await openBoard(page);

@@ -60,13 +60,18 @@
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
+  /* Darker than shadcn's 0.556, so muted text on the columns' muted
+     background still meets WCAG AA (4.5:1). */
+  --muted-foreground: oklch(0.52 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  /* The focus ring: Chrome's blue (Windows), fixed so every browser shows
+     the same one, as a 2px ring. 70% opaque, the most translucent it can be
+     while keeping WCAG's 3:1 for focus indicators on every surface. */
+  --ring: rgb(0 95 204 / 70%);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -101,7 +106,9 @@
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  /* A lighter blue, as Chrome lightens its own ring in dark mode: #005fcc
+     is under 3:1 against dark cards. Also 70% opaque, over 3:1 everywhere. */
+  --ring: rgb(76 154 255 / 70%);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -119,7 +126,13 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
+  }
+  /* Anything without its own focus style gets the same blue ring, not the
+     browser's own (whose colour varies by browser and OS). */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
   }
   body {
     @apply bg-background text-foreground;
@@ -130,5 +143,19 @@
   }
   html.dark {
     color-scheme: dark;
+  }
+}
+
+/* Reduced motion turns every animation and transition off: things appear
+   in their final state. A near-zero duration, not none, so animationend and
+   transitionend still fire for code that waits on them. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

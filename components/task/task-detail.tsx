@@ -9,6 +9,7 @@ import {
   setTaskStatus,
 } from "@/lib/board/actions";
 import { Comments, CommentsSkeleton } from "./comments";
+import { CommentsErrorBoundary } from "./comments-error-boundary";
 import { FieldSelect } from "./field-select";
 import { LabelPicker } from "./label-picker";
 import { TaskHeading, type TaskView } from "./task-heading";
@@ -82,9 +83,11 @@ export async function TaskDetail({
         )}
       </Section>
       <Section title="Comments">
-        <Suspense fallback={<CommentsSkeleton />}>
-          <Comments taskId={task.id} />
-        </Suspense>
+        <CommentsErrorBoundary>
+          <Suspense fallback={<CommentsSkeleton />}>
+            <Comments taskId={task.id} />
+          </Suspense>
+        </CommentsErrorBoundary>
       </Section>
     </div>
   );

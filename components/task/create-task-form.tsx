@@ -251,7 +251,7 @@ export function CreateTaskForm({
 }
 
 const inputClass =
-  "h-9 w-full rounded-md border border-input bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 pointer-coarse:h-11 pointer-coarse:text-lg";
+  "h-9 w-full rounded-md border border-input bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring aria-invalid:border-destructive aria-invalid:ring-destructive/20 pointer-coarse:h-11 pointer-coarse:text-lg";
 
 const selectClass = cn(inputClass, "cursor-pointer");
 
@@ -377,7 +377,7 @@ function LabelChoices({
                 setChosen(on ? chosen.filter((id) => id !== label.id) : [...chosen, label.id])
               }
               className={cn(
-                "inline-flex h-7 cursor-pointer items-center rounded-md px-2.5 text-xs font-medium ring-1 ring-inset outline-none select-none focus-visible:ring-2 focus-visible:ring-ring/50 pointer-coarse:h-10 pointer-coarse:px-3.5 pointer-coarse:text-sm",
+                "inline-flex h-7 cursor-pointer items-center rounded-md px-2.5 text-xs font-medium ring-1 ring-inset outline-none select-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:h-10 pointer-coarse:px-3.5 pointer-coarse:text-sm",
                 on
                   ? labelColorClass(label.color)
                   : "text-muted-foreground ring-border hover:text-foreground",

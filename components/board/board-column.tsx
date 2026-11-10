@@ -40,7 +40,7 @@ export function BoardColumn({
           // -my-1 keeps the header's height: the circle is taller than the text.
           // On touch the link is a 40px tap target around the same small
           // circle, its negative margins keeping the header as it is.
-          className="group/create -my-1 ml-auto flex size-6 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring/50 pointer-coarse:-my-2 pointer-coarse:-mr-2 pointer-coarse:size-10"
+          className="group/create -my-1 ml-auto flex size-6 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:-my-2 pointer-coarse:-mr-2 pointer-coarse:size-10"
         >
           <span className="flex size-6 items-center justify-center rounded-full border border-border bg-background/60 text-muted-foreground group-hover/create:bg-background group-hover/create:text-foreground dark:bg-background/30 dark:group-hover/create:bg-background/60">
             <PlusIcon className="size-3.5" aria-hidden />

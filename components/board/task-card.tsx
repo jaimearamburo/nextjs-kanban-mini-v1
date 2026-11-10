@@ -1,5 +1,7 @@
+"use client";
+
 import Link from "next/link";
-import type { ComponentProps } from "react";
+import { useState, type ComponentProps } from "react";
 import { setTaskPriority } from "@/lib/board/actions";
 import type { BoardTask, Status } from "@/lib/board/domain";
 import { cn } from "@/lib/utils";
@@ -24,6 +26,11 @@ export function TaskCard({
   dropEdge?: DropEdge;
   moveAction?: (taskId: string, status: Status) => void;
 } & ComponentProps<"article">) {
+  // Intent ends when the pointer leaves or focus moves on, so a card hovered
+  // once isn't prefetched again after every later write.
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const intent = hovered || focused;
   return (
     <article
       aria-label={task.title}
@@ -32,6 +39,14 @@ export function TaskCard({
         className,
       )}
       {...props}
+      onMouseEnter={(event) => {
+        setHovered(true);
+        props.onMouseEnter?.(event);
+      }}
+      onMouseLeave={(event) => {
+        setHovered(false);
+        props.onMouseLeave?.(event);
+      }}
     >
       {dropEdge && <DropLine edge={dropEdge} />}
       <div className="flex items-start gap-2">
@@ -42,10 +57,15 @@ export function TaskCard({
             // The card is dragged, never the link (the browser's own link drag).
             draggable={false}
             href={`/tasks/${task.id}`}
-            // Per-link prefetch also loads the cached Task, not just the route's
-            // shell, so the detail is ready the moment the title is clicked.
-            prefetch
-            className="rounded-sm underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring/50"
+            // On intent only (Next's advice for a grid of cards): while the
+            // card is hovered or the title focused, the per-link prefetch
+            // loads the route and the cached Task, so the detail is ready when
+            // it's clicked. Not "auto": that still fetches a route tree per
+            // card, again after every write, which clears the router cache.
+            prefetch={intent}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            className="rounded-sm underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
           >
             {task.title}
           </Link>

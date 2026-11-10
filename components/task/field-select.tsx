@@ -38,7 +38,7 @@ export function FieldSelect<T extends string>({
       value={optimisticValue}
       onChange={(event) => handleChange(event.target.value as T)}
       data-pending={isPending || undefined}
-      className="h-8 cursor-pointer rounded-md border border-input bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50 data-pending:animate-pulse pointer-coarse:h-10 pointer-coarse:text-lg"
+      className="h-8 cursor-pointer rounded-md border border-input bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring data-pending:animate-pulse pointer-coarse:h-10 pointer-coarse:text-lg"
     >
       {options.map((option) => (
         <option key={option.value} value={option.value}>

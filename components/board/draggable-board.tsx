@@ -369,8 +369,10 @@ const DraggableTaskCard = memo(function DraggableTaskCard({
     id: task.id,
     // A Task not saved yet has no id the server knows, so it can't move.
     disabled: creating,
-    // Still an article to assistive tech; the whole card is the handle.
-    attributes: { role: "article", roleDescription: "draggable Task" },
+    // Still an article to assistive tech; the whole card is the handle. Not a
+    // tab stop: cards drag by mouse or touch only, so keyboard users go
+    // straight to the title and Priority (Status changes in Task detail).
+    attributes: { role: "article", roleDescription: "draggable Task", tabIndex: -1 },
   });
   const ref = useCallback(
     (element: HTMLElement | null) => {
@@ -391,7 +393,7 @@ const DraggableTaskCard = memo(function DraggableTaskCard({
       // Nor can it be opened or changed: its link and Priority wait for the save.
       inert={creating || undefined}
       className={cn(
-        "cursor-grab outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+        "cursor-grab outline-none",
         // A long press drags the card: it mustn't select text or, on iOS,
         // open the title link's preview.
         "pointer-coarse:select-none pointer-coarse:[-webkit-touch-callout:none]",

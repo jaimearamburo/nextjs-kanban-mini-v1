@@ -26,8 +26,9 @@ export function TaskModal({ children }: { children: ReactNode }) {
     >
       <DialogPrimitive.Portal>
         {/* From sm, top-14 sits below the h-14 AppHeader, leaving it
-            uncovered. A very light blur sets the Board back without hiding it. */}
-        <DialogPrimitive.Backdrop className="fixed inset-x-0 top-0 bottom-0 sm:top-14 z-40 bg-black/10 backdrop-blur-[2px] transition-opacity duration-150 data-starting-style:opacity-0 dark:bg-black/30" />
+            uncovered. A 1px blur sets the Board back while its card titles
+            stay readable. */}
+        <DialogPrimitive.Backdrop className="fixed inset-x-0 top-0 bottom-0 sm:top-14 z-40 bg-black/10 backdrop-blur-[1px] transition-opacity duration-150 data-starting-style:opacity-0 dark:bg-black/30" />
         <DialogPrimitive.Popup className="fixed top-0 right-0 bottom-0 sm:top-14 z-50 w-full overflow-y-auto overscroll-contain bg-background sm:border-l p-6 text-sm shadow-xl outline-none transition-transform duration-200 ease-out data-starting-style:translate-x-full sm:w-3/4 sm:max-w-3xl sm:p-8">
           {children}
           <DialogPrimitive.Close
