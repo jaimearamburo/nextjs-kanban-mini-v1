@@ -33,7 +33,7 @@ export function ThemeSwitcher() {
           title={name}
           onClick={() => chooseTheme(choice)}
           className={cn(
-            "inline-flex size-6 cursor-pointer items-center justify-center rounded-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50",
+            "inline-flex size-6 cursor-pointer items-center justify-center rounded-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 pointer-coarse:size-10",
             selectedClasses,
           )}
         >

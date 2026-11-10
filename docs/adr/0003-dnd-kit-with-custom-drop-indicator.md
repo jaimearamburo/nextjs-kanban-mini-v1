@@ -1,3 +1,5 @@
 # dnd-kit with a hand-built Jira-style drop indicator
 
 We use dnd-kit for drag and drop, and draw our own Jira-style drop line (cards don't shift) instead of using the sortable preset's gap. Atlassian's Pragmatic drag and drop would give the Jira line for free. We rejected it because it relies on the browser's native drag API: touch support is unreliable (broken on Firefox for Android, inconsistent on Chrome for Android and iOS), and we need long-press reordering and Trello-style drag-to-edge column switching on mobile. Hand-written native HTML5 drag and drop was rejected for the same reason, and because on its own it has no way to show a drop position.
+
+**Update (#17):** touch dragging is deferred. On touch screens, a card's "Move to…" menu changes its Status instead, putting the Task at the top of the new Status, and dragging stays mouse only. On a real phone, scrolling sideways across the columns turned out to work well enough that long-press reordering and drag-to-edge weren't worth building yet. dnd-kit still leaves room to add them later with its touch sensor.

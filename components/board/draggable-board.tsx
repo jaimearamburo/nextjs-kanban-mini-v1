@@ -22,12 +22,12 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { moveTaskBetween } from "@/lib/board/actions";
-import type { BoardTask } from "@/lib/board/domain";
+import type { BoardTask, Status } from "@/lib/board/domain";
 import { cn } from "@/lib/utils";
 import { BoardColumn } from "./board-column";
 import { BoardLayout } from "./board-layout";
 import { useCreatedTasks, withCreated } from "./created-tasks";
-import { DropLine, type DropEdge } from "./drop-line";
+import { DropLine } from "./drop-line";
 import {
   applyMove,
   currentSlot,
@@ -37,6 +37,7 @@ import {
   type ClientStatusTasks,
   type ClientTask,
   type DropSlot,
+  type Move,
 } from "./move";
 import { TaskCard } from "./task-card";
 
@@ -151,7 +152,7 @@ export function DraggableBoard({
     [],
   );
   const sensors = useSensors(
-    // Mouse only: touch drags (long-press) are the mobile ticket's (ADR-0003).
+    // Mouse only: touch screens use "Move to…" instead (ADR-0003).
     useSensor(MouseSensor, mouseOptions),
   );
 
@@ -216,20 +217,35 @@ export function DraggableBoard({
     setTimeout(() => window.removeEventListener("click", preventClick, { capture: true }), 50);
   }
 
+  /** Moves a Task's card at once and saves the move; it rolls back with a toast if refused. */
+  const commitMove = useCallback(
+    ({ taskId, ...to }: Move) => {
+      // The standalone startTransition: no isPending, so nothing fades (the
+      // optimistic move is the feedback).
+      startTransition(async () => {
+        applyOptimisticMove({ taskId, ...to });
+        const result = await moveTaskBetween(taskId, to);
+        if (!result.ok) {
+          toast.error("Couldn't move the Task", { description: result.error });
+        }
+      });
+    },
+    [applyOptimisticMove],
+  );
+
+  // "Move to…" puts the Task at the top of its new Status. Stable, so it
+  // doesn't re-render the memoised cards.
+  const moveToTop = useCallback(
+    (taskId: string, status: Status) =>
+      commitMove(moveFor(statusesRef.current, taskId, { status, index: 0 })),
+    [commitMove],
+  );
+
   function handleDragEnd({ active }: { active: { id: string | number } }) {
     const slot = dropRef.current;
     endDrag();
     if (!slot || isSameSlot(slot, originRef.current)) return;
-    const { taskId, ...to } = moveFor(statusesRef.current, String(active.id), slot);
-    // The standalone startTransition: no isPending, so nothing fades (the
-    // optimistic move is the feedback).
-    startTransition(async () => {
-      applyOptimisticMove({ taskId, ...to });
-      const result = await moveTaskBetween(taskId, to);
-      if (!result.ok) {
-        toast.error("Couldn't move the Task", { description: result.error });
-      }
-    });
+    commitMove(moveFor(statusesRef.current, String(active.id), slot));
   }
 
   return (
@@ -272,6 +288,7 @@ export function DraggableBoard({
                   task={task}
                   dimmed={task.id === active?.id}
                   data-pending={task.moving || task.creating || undefined}
+                  moveAction={moveToTop}
                   dropEdge={
                     task.id === lineAbove ? "top" : task.id === lineBelow ? "bottom" : undefined
                   }
@@ -301,7 +318,7 @@ const DraggableTaskCard = memo(function DraggableTaskCard({
   dropEdge,
   dimmed,
   ...props
-}: { task: ClientTask; dropEdge?: DropEdge; dimmed: boolean } & ComponentProps<"article">) {
+}: { task: ClientTask; dimmed: boolean } & ComponentProps<typeof TaskCard>) {
   // isDragging and the transform go unused: the overlay is what moves, and
   // the original fades only once it has (`dimmed`).
   const creating = task.creating === true;

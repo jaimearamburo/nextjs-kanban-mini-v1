@@ -53,7 +53,7 @@ export function TaskSearch({ q, boardUrl }: { q: string; boardUrl: BoardUrl }) {
         placeholder="Search Tasks"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
-        className="h-8 w-full rounded-md border border-input bg-background pr-2.5 pl-8 text-sm shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+        className="h-8 w-full rounded-md border border-input bg-background pr-2.5 pl-8 text-sm shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30 pointer-coarse:h-11 pointer-coarse:text-lg"
       />
     </div>
   );
