@@ -17,7 +17,9 @@ export function BoardLayout({
   return (
     <div
       className={cn(
-        "flex flex-1 items-start gap-3 overflow-x-auto px-4 pb-6 sm:px-6",
+        "flex flex-1 items-start gap-3 overflow-x-auto scroll-px-4 px-4 pb-6 sm:scroll-px-6 sm:px-6",
+        // Touch only: snap fights dnd-kit's auto-scroll while dragging with a mouse.
+        "pointer-coarse:snap-x pointer-coarse:snap-mandatory",
         className,
       )}
       {...props}

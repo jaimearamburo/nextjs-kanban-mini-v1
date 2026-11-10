@@ -24,7 +24,7 @@ export function GuestIdentity({ guest }: { guest: Guest }) {
         aria-label={`You are ${guest.name}`}
         className="flex items-center gap-2"
       >
-        <span className="max-w-40 truncate text-sm font-medium">{guest.name}</span>
+        <span className="max-w-40 truncate text-sm font-medium max-sm:sr-only">{guest.name}</span>
         <GuestAvatar guest={guest} />
       </div>
       <RerollButton />
