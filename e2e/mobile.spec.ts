@@ -54,6 +54,16 @@ test.describe("on a phone", () => {
     await expectNoSidewaysPage(page);
   });
 
+  test("a Task opens as a full-screen sheet, covering the header", async ({ page }) => {
+    await openBoard(page);
+    await page.getByRole("link", { name: "Create a Task in To Do" }).tap();
+
+    // Nothing above it is left to drag: iOS would scroll the Board behind.
+    const sheet = page.getByRole("dialog");
+    await expect(sheet).toBeVisible();
+    await expect.poll(async () => (await size(sheet)).y).toBe(0);
+  });
+
   test("the header's bigger controls still fit on a small phone", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
     await openBoard(page);
@@ -159,6 +169,17 @@ async function columnOffset(board: Locator, status: string) {
   ]);
   return Math.round(columnBox.x - boardBox.x);
 }
+
+test("on a desktop, a Task opens as a side panel below the header", async ({ page }) => {
+  await openBoard(page);
+  // Measured first: the open modal hides the header from assistive tech.
+  const header = await size(page.getByRole("banner"));
+  await page.getByRole("link", { name: "Create a Task in To Do" }).click();
+
+  const panel = page.getByRole("dialog");
+  await expect(panel).toBeVisible();
+  await expect.poll(async () => (await size(panel)).y).toBe(header.y + header.height);
+});
 
 test("on a desktop, a sideways scroll of the Board stays where it's left", async ({ page }) => {
   // Narrow enough that the Board scrolls.

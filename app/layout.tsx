@@ -35,7 +35,7 @@ export default function RootLayout({ children, modal }: LayoutProps<"/">) {
       </head>
       <body className="flex min-h-full flex-col">
         {/* In the layout, so it stays put across navigations; the Task modal
-            sits below its h-14 (top-14 in TaskModal). */}
+            sits below its h-14 from sm (top-14 in TaskModal). */}
         <AppHeader />
         <CreatedTasksProvider>
           {children}
