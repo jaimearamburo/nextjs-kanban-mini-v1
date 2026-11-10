@@ -5,9 +5,9 @@ import { EllipsisVerticalIcon } from "lucide-react";
 import { STATUSES, STATUS_NAMES, type Status } from "@/lib/board/domain";
 
 /**
- * A card's "Move to…" menu, for changing its Status on touch screens, where
- * cards can't be dragged (ADR-0003). It lists the other Statuses; mouse
- * users drag instead, so it's hidden for them.
+ * A card's "Move to…" menu, for changing its Status on touch screens without
+ * a long-press drag across the columns (ADR-0003). It lists the other
+ * Statuses; mouse users drag instead, so it's hidden for them.
  */
 export function MoveToMenu({
   status,
