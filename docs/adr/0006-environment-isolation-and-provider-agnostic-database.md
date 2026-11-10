@@ -15,7 +15,7 @@ Nothing outside production may ever touch production services, and the database 
 |---|---|
 | Production (`main`) | Production database. Its URL exists only in Vercel's Production scope. |
 | Local development and Vercel previews | The `dev` database, currently a free Neon branch. |
-| Local integration tests | A disposable `test` database, currently a free Neon branch. |
+| Local integration and Playwright tests | A disposable `test` database, currently a free Neon branch. |
 | CI | A GitHub Actions Postgres service container. |
 
 ## Migrations
@@ -24,8 +24,9 @@ Only Production builds run `prisma migrate deploy`, so merging to `main` migrate
 
 ## Guards
 
-- A Zod-validated env module crashes at startup if any environment other than production is configured with the production database host (`PRODUCTION_DATABASE_HOST`, not secret), and if production is configured with anything else.
-- The reset and seed scripts refuse the production host and require an explicit opt-in.
+- Everything outside production that connects to a database checks the connection string against the production database host (`PRODUCTION_DATABASE_HOST`, not secret) and refuses to run if they match, or if the host isn't set. That covers the seed, reset and test-migration scripts, the integration tests, and therefore the Playwright test server, which is seeded through the same script. The hosts are compared without the `-pooler` suffix, so a pooled URL and a direct URL for the same database both match.
+- The reset and seed scripts also require an explicit `--yes`, because they replace the database's contents.
+- The app itself doesn't check the host at runtime. Production's URL exists only in Vercel's Production scope, so nothing else can be configured with it by accident.
 
 ## Considered options
 
