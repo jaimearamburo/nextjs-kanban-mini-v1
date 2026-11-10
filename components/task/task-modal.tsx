@@ -9,9 +9,10 @@ import { Button } from "@/components/ui/button";
 /**
  * The Task detail as a side panel over the Board, as in GitHub Projects: it
  * slides in from the right below the header, covers three quarters of the
- * width up to a readable 48rem (all of it on phones) and scrolls on its own. Esc, a click outside or
- * the close button go back in history, so the Board reappears as it was; the
- * browser's back button does the same on its own.
+ * width up to a readable 48rem (all of it on phones) and scrolls on its
+ * own. Esc, a click outside or the close button go back in history, so the
+ * Board reappears as it was; the browser's back button does the same on its
+ * own.
  */
 export function TaskModal({ children }: { children: ReactNode }) {
   const router = useRouter();

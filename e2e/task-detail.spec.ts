@@ -85,13 +85,13 @@ test("the Task opens instantly from a card, with no wait on the server", async (
   });
 });
 
-for (const { viewport, width } of [
+for (const { viewport, panelWidth } of [
   // Three quarters of the screen...
-  { viewport: 900, width: 675 },
+  { viewport: 900, panelWidth: 675 },
   // ...capped at 48rem, so the single column doesn't run too wide.
-  { viewport: 1280, width: 768 },
+  { viewport: 1280, panelWidth: 768 },
 ] as const) {
-  test(`at ${viewport}px wide, the Task opens as a ${width}px side panel below the header`, async ({
+  test(`at ${viewport}px wide, the Task opens as a ${panelWidth}px side panel below the header`, async ({
     page,
   }) => {
     await page.setViewportSize({ width: viewport, height: 800 });
@@ -106,7 +106,7 @@ for (const { viewport, width } of [
     await expect(async () => {
       const box = (await panel.boundingBox())!;
       expect(box.x + box.width).toBe(viewport);
-      expect(box.width).toBe(width);
+      expect(box.width).toBe(panelWidth);
       expect(box.y).toBe(header!.y + header!.height);
       expect(box.y + box.height).toBe(800);
     }).toPass();
