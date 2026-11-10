@@ -7,7 +7,7 @@ import { TaskPageLayout } from "@/components/task/task-page-layout";
 export default function TaskPage({ params }: PageProps<"/tasks/[id]">) {
   return (
     <TaskPageLayout>
-      <Suspense fallback={<TaskDetailSkeleton view="page" />}>
+      <Suspense fallback={<TaskDetailSkeleton />}>
         {params.then(({ id }) => (
           <TaskDetail id={id} view="page" />
         ))}

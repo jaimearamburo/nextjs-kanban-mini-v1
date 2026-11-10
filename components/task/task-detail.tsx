@@ -11,7 +11,6 @@ import {
 import { Comments, CommentsSkeleton } from "./comments";
 import { FieldSelect } from "./field-select";
 import { LabelPicker } from "./label-picker";
-import { TaskDetailLayout } from "./task-detail-layout";
 import { TaskHeading, type TaskView } from "./task-heading";
 
 /**
@@ -33,14 +32,7 @@ export async function TaskDetail({
   if (!task) notFound();
 
   return (
-    <TaskDetailLayout
-      view={view}
-      activity={
-        <Section title="Activity">
-          <p className="text-sm text-muted-foreground">Activity will appear here.</p>
-        </Section>
-      }
-    >
+    <div className="flex flex-col gap-6">
       {/* Right padding keeps a long title clear of the modal's close button. */}
       <TaskHeading view={view} className="pr-8">
         {task.title}
@@ -94,7 +86,7 @@ export async function TaskDetail({
           <Comments taskId={task.id} />
         </Suspense>
       </Section>
-    </TaskDetailLayout>
+    </div>
   );
 }
 

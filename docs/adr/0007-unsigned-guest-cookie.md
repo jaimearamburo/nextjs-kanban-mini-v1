@@ -4,7 +4,7 @@ A Guest is a label, not an account: it owns nothing private, and every Guest can
 
 ## Consequences
 
-Anyone who copies another browser's Guest id into their own cookie acts as that Guest: their Comments and Activity are attributed to it. Ids are random UUIDs that are never shown in the UI, so this takes deliberate effort and gains nothing that being your own Guest doesn't already allow. In issue #3, a "tampered" cookie means a malformed or unknown id, not a real id copied from someone else.
+Anyone who copies another browser's Guest id into their own cookie acts as that Guest: their Comments are attributed to it. Ids are random UUIDs that are never shown in the UI, so this takes deliberate effort and gains nothing that being your own Guest doesn't already allow. In issue #3, a "tampered" cookie means a malformed or unknown id, not a real id copied from someone else.
 
 ## Considered options
 

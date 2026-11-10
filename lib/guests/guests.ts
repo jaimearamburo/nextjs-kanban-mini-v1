@@ -52,9 +52,9 @@ export function createGuests(
     },
     /**
      * "New identity": a name different from the current one, so the visitor
-     * sees a change. A Guest with nothing attributed to it yet is renamed in
-     * place, so mashing the button adds no rows. A Guest with Comments or
-     * Activity is kept for its past actions (ADR-0002) and a new Guest is made.
+     * sees a change. A Guest with no Comments yet is renamed in place, so
+     * mashing the button adds no rows. A Guest with Comments is kept for them
+     * (ADR-0002) and a new Guest is made.
      */
     async rerollGuest(cookieValue: string | undefined): Promise<Guest> {
       const current = await findGuest(cookieValue);
@@ -63,9 +63,9 @@ export function createGuests(
         identity = generateGuestIdentity(random);
       }
       if (current) {
-        // One statement, so a Comment or Activity landing meanwhile isn't renamed.
+        // One statement, so a Comment landing meanwhile isn't renamed.
         const { count } = await db.guest.updateMany({
-          where: { id: current.id, comments: { none: {} }, activities: { none: {} } },
+          where: { id: current.id, comments: { none: {} } },
           data: identity,
         });
         if (count === 1) return { id: current.id, ...identity };
