@@ -1,13 +1,15 @@
 "use server";
 
 import { refresh, updateTag } from "next/cache";
+import type { ActionResult } from "@/lib/action-result";
 import { runDemoControls } from "@/lib/demo";
 import { requireGuest, type Guest } from "@/lib/guests";
 import { cacheTags } from "./cache-tags";
-import type { Priority, Status, WriteResult } from "./domain";
+import type { CreateTaskResult, Priority, Status, WriteResult } from "./domain";
 import {
   addComment,
   archiveComment,
+  createTask,
   getTask,
   moveTask,
   setAssignee,
@@ -65,8 +67,14 @@ export async function moveTaskBetween(taskId: string, move: Omit<MoveTaskInput, 
   return writeTask(taskId, (guest) => moveTask(guest, { taskId, ...move }));
 }
 
-/** The Comment Server Action: Comments are uncached, so it refreshes rather than updates a tag. */
-async function writeComment(write: (guest: Guest) => Promise<WriteResult>): Promise<WriteResult> {
+/**
+ * The Server Action for writes to uncached reads (Comments, and the Board
+ * itself: ADR-0008): Guest, demo controls, the write, then a router refresh
+ * rather than a tag update.
+ */
+async function writeAndRefresh<R extends ActionResult>(
+  write: (guest: Guest) => Promise<R>,
+): Promise<R | Extract<ActionResult, { ok: false }>> {
   const guest = await requireGuest();
   const demo = await runDemoControls();
   if (!demo.ok) return demo;
@@ -75,12 +83,36 @@ async function writeComment(write: (guest: Guest) => Promise<WriteResult>): Prom
   return result;
 }
 
+/** A form field's text, or undefined when the field wasn't sent (so its default applies). */
+function formText(formData: FormData, name: string) {
+  const value = formData.get(name);
+  return value === null ? undefined : value;
+}
+
+/**
+ * Creates a Task from the create form. An empty Assignee (the select's
+ * "Unassigned") is none; Labels are the ones toggled on.
+ */
+export async function createBoardTask(formData: FormData): Promise<CreateTaskResult> {
+  const assigneeId = formText(formData, "assigneeId");
+  return writeAndRefresh((guest) =>
+    createTask(guest, {
+      title: formText(formData, "title"),
+      description: formText(formData, "description"),
+      status: formText(formData, "status"),
+      priority: formText(formData, "priority"),
+      assigneeId: assigneeId === "" ? null : assigneeId,
+      labelIds: formData.getAll("labelIds"),
+    }),
+  );
+}
+
 /** Adds the Guest's Comment to a Task. */
 export async function addTaskComment(taskId: string, body: string) {
-  return writeComment((guest) => addComment(guest, { taskId, body }));
+  return writeAndRefresh((guest) => addComment(guest, { taskId, body }));
 }
 
 /** Archives a Comment, whoever wrote it (ADR-0002). */
 export async function archiveTaskComment(commentId: string) {
-  return writeComment((guest) => archiveComment(guest, { commentId }));
+  return writeAndRefresh((guest) => archiveComment(guest, { commentId }));
 }

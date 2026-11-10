@@ -1,5 +1,6 @@
 import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
+import { connection } from "next/server";
 import { db } from "@/lib/db";
 import { createBoard } from "./board";
 import { cacheTags } from "./cache-tags";
@@ -11,8 +12,15 @@ const board = createBoard(db);
 /**
  * The Board narrowed by its search params (Label Filter and text search).
  * Malformed params are ignored. Uncached: ADR-0008.
+ *
+ * `connection()` keeps the query out of prerendering, the runtime prefetch
+ * included: opening a database connection draws a random SCRAM nonce
+ * (`crypto.getRandomValues`), which Next refuses while prerendering.
  */
-export const getBoard = board.getBoard;
+export async function getBoard(searchParams?: unknown) {
+  await connection();
+  return board.getBoard(searchParams);
+}
 
 /**
  * A Task's detail, or null if the id is unknown, malformed or Archived.
@@ -50,8 +58,20 @@ export const setLabels = board.setLabels;
 /** Moves a Task between two cards. Server Actions call this, then update the Task's cache tag. */
 export const moveTask = board.moveTask;
 
-/** A Task's Comments. Uncached, so call it inside Suspense. */
-export const listComments = board.listComments;
+/**
+ * Creates a Task at the top of its Status. The Board read is uncached, so
+ * the Server Action refreshes the router rather than updating a tag.
+ */
+export const createTask = board.createTask;
+
+/**
+ * A Task's Comments. Uncached, so call it inside Suspense. Kept out of
+ * prerendering for the same reason as getBoard.
+ */
+export async function listComments(taskId: unknown) {
+  await connection();
+  return board.listComments(taskId);
+}
 
 /** Comment writes. Server Actions call these, then refresh the router. */
 export const addComment = board.addComment;

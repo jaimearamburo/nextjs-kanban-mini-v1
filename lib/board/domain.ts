@@ -78,3 +78,26 @@ export type Comment = { id: string; body: string; createdAt: Date; author: Comme
 
 /** What every Board write returns. */
 export type WriteResult = ActionResult;
+
+/** The longest title a Task can have. Titles are set only when the Task is created. */
+export const TASK_TITLE_MAX_LENGTH = 120;
+
+/** The longest description a Task can have: plain text, line breaks kept. */
+export const TASK_DESCRIPTION_MAX_LENGTH = 2000;
+
+/** The fields of the create form. */
+export type CreateTaskField =
+  | "title"
+  | "description"
+  | "status"
+  | "priority"
+  | "assigneeId"
+  | "labelIds";
+
+/** One message per field at fault, shown under it. */
+export type CreateTaskFieldErrors = Partial<Record<CreateTaskField, string>>;
+
+/** What creating a Task returns: the new Task's id, or why it was refused. */
+export type CreateTaskResult =
+  | { ok: true; taskId: string }
+  | { ok: false; error: string; fieldErrors?: CreateTaskFieldErrors };

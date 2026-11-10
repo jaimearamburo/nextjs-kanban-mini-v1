@@ -1,8 +1,11 @@
 import type { BoardTask, Status } from "@/lib/board/domain";
 import type { MoveTaskInput } from "@/lib/board/schemas";
 
-/** A card on the client Board: `moving` while its move is unconfirmed. */
-export type ClientTask = BoardTask & { moving?: boolean };
+/**
+ * A card on the client Board: `moving` while its move is unconfirmed,
+ * `creating` while it's a Task the server hasn't saved yet.
+ */
+export type ClientTask = BoardTask & { moving?: boolean; creating?: boolean };
 
 /** One Status and its cards, as the client Board shows them. */
 export type ClientStatusTasks = { status: Status; tasks: ClientTask[] };

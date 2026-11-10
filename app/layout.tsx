@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { AppHeader } from "@/components/app-header";
+import { CreatedTasksProvider } from "@/components/board/created-tasks";
 import { Toaster } from "@/components/ui/sonner";
 import { themeInitScript } from "@/lib/theme";
 import "./globals.css";
@@ -32,8 +34,13 @@ export default function RootLayout({ children, modal }: LayoutProps<"/">) {
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="flex min-h-full flex-col">
-        {children}
-        {modal}
+        {/* In the layout, so it stays put across navigations; the Task modal
+            sits below its h-14 (top-14 in TaskModal). */}
+        <AppHeader />
+        <CreatedTasksProvider>
+          {children}
+          {modal}
+        </CreatedTasksProvider>
         <Toaster position="bottom-right" />
       </body>
     </html>

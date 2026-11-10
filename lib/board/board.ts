@@ -1,11 +1,15 @@
 import { generateNKeysBetween } from "fractional-indexing";
+import { z } from "zod";
 import type { Database } from "@/lib/db/client";
 import type { Guest } from "@/lib/guests/guests";
 import {
   STATUSES,
   type Board,
   type Comment,
+  type CreateTaskFieldErrors,
+  type CreateTaskResult,
   type Label,
+  type Status,
   type TaskDetail,
   type TeamMember,
   type WriteResult,
@@ -14,6 +18,9 @@ import {
   addCommentInput,
   archiveCommentInput,
   boardFilter,
+  CHOOSE_ASSIGNEE,
+  CHOOSE_LABELS,
+  createTaskInput,
   moveTaskInput,
   setAssigneeInput,
   setLabelsInput,
@@ -32,6 +39,11 @@ function escapeLike(text: string) {
 
 const invalidInput = { ok: false, error: "Invalid input." } as const;
 const taskGone = { ok: false, error: "This Task no longer exists." } as const;
+
+/** A create refused for its fields, each with the message shown under it. */
+function refusedFields(fieldErrors: CreateTaskFieldErrors) {
+  return { ok: false, error: "Check the highlighted fields.", fieldErrors } as const;
+}
 /**
  * A drop whose neighbours no longer match the Board: usually another Guest
  * moved one mid-drag. Refused, never guessed: a move lands exactly where its
@@ -78,6 +90,40 @@ export function createBoard(
   db: Database,
   { random = Math.random }: { random?: () => number } = {},
 ) {
+  /**
+   * A Rank in the gap between `before` and `after` (null for either end),
+   * picked at random among several, so concurrent writes into it rarely tie.
+   */
+  function rankBetween(before: string | null, after: string | null) {
+    return generateNKeysBetween(before, after, RANK_CHOICES)[Math.floor(random() * RANK_CHOICES)];
+  }
+
+  /** Whether an Assignee is on the Team Member roster; none (null) always is. */
+  async function isOnRoster(assigneeId: string | null) {
+    if (assigneeId === null) return true;
+    const member = await db.teamMember.findUnique({
+      where: { id: assigneeId },
+      select: { id: true },
+    });
+    return member !== null;
+  }
+
+  /** Whether every Label id is in the fixed set. Expects no duplicates. */
+  async function areKnownLabels(labelIds: string[]) {
+    const known = await db.label.count({ where: { id: { in: labelIds } } });
+    return known === labelIds.length;
+  }
+
+  /** A Rank above every Task now in `status`. */
+  async function topRank(status: Status) {
+    const top = await db.task.findFirst({
+      where: { status, archivedAt: null },
+      orderBy: [{ rank: "asc" }, { id: "asc" }],
+      select: { rank: true },
+    });
+    return rankBetween(null, top?.rank ?? null);
+  }
+
   return {
     /**
      * The Board, narrowed by its search params: a Task is shown if it has any
@@ -168,14 +214,7 @@ export function createBoard(
       });
       if (!current) return taskGone;
       if (current.status === status) return { ok: true };
-      const top = await db.task.findFirst({
-        where: { status, archivedAt: null },
-        orderBy: [{ rank: "asc" }, { id: "asc" }],
-        select: { rank: true },
-      });
-      const rank = generateNKeysBetween(null, top?.rank ?? null, RANK_CHOICES)[
-        Math.floor(random() * RANK_CHOICES)
-      ];
+      const rank = await topRank(status);
       const { count } = await db.task.updateMany({
         where: { id: taskId, archivedAt: null },
         data: { status, rank },
@@ -188,13 +227,7 @@ export function createBoard(
       const parsed = setAssigneeInput.safeParse(input);
       if (!parsed.success) return invalidInput;
       const { taskId, assigneeId } = parsed.data;
-      if (assigneeId !== null) {
-        const member = await db.teamMember.findUnique({
-          where: { id: assigneeId },
-          select: { id: true },
-        });
-        if (!member) return invalidInput;
-      }
+      if (!(await isOnRoster(assigneeId))) return invalidInput;
       const { count } = await db.task.updateMany({
         where: { id: taskId, archivedAt: null },
         data: { assigneeId },
@@ -207,8 +240,7 @@ export function createBoard(
       const parsed = setLabelsInput.safeParse(input);
       if (!parsed.success) return invalidInput;
       const { taskId, labelIds } = parsed.data;
-      const known = await db.label.count({ where: { id: { in: labelIds } } });
-      if (known !== labelIds.length) return invalidInput;
+      if (!(await areKnownLabels(labelIds))) return invalidInput;
       try {
         await db.task.update({
           where: { id: taskId, archivedAt: null },
@@ -256,15 +288,46 @@ export function createBoard(
       const rank =
         before && after && before.rank === after.rank
           ? before.rank
-          : generateNKeysBetween(before?.rank ?? null, after?.rank ?? null, RANK_CHOICES)[
-              Math.floor(random() * RANK_CHOICES)
-            ];
+          : rankBetween(before?.rank ?? null, after?.rank ?? null);
       const { count } = await db.task.updateMany({
         where: { id: taskId, archivedAt: null },
         data: { status, rank },
       });
       if (count !== 1) return taskGone;
       return { ok: true };
+    },
+    /**
+     * Creates a Task at the top of its Status. A refusal names each field
+     * at fault, for the form to show inline. It will record Activity once
+     * Activity lands (#12).
+     */
+    async createTask(guest: Guest, input: unknown): Promise<CreateTaskResult> {
+      const parsed = createTaskInput.safeParse(input);
+      if (!parsed.success) {
+        const fieldErrors = Object.entries(z.flattenError(parsed.error).fieldErrors);
+        // Not an object at all: nothing to show under any field.
+        if (fieldErrors.length === 0) return invalidInput;
+        return refusedFields(
+          Object.fromEntries(fieldErrors.map(([field, messages]) => [field, messages?.[0]])),
+        );
+      }
+      const { labelIds, ...fields } = parsed.data;
+      const [onRoster, knownLabels] = await Promise.all([
+        isOnRoster(fields.assigneeId),
+        areKnownLabels(labelIds),
+      ]);
+      if (!onRoster || !knownLabels) {
+        return refusedFields({
+          ...(!onRoster && { assigneeId: CHOOSE_ASSIGNEE }),
+          ...(!knownLabels && { labelIds: CHOOSE_LABELS }),
+        });
+      }
+      const rank = await topRank(fields.status);
+      const task = await db.task.create({
+        data: { ...fields, rank, labels: { connect: labelIds.map((id) => ({ id })) } },
+        select: { id: true },
+      });
+      return { ok: true, taskId: task.id };
     },
     /** A Task's Comments, oldest first. Empty for an unknown, malformed or Archived id. */
     async listComments(id: unknown): Promise<Comment[]> {

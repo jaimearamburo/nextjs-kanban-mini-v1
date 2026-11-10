@@ -1,5 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { db } from "@/lib/db";
 import { createGuests, type Guest } from "./guests";
 
@@ -17,7 +18,11 @@ const ONE_YEAR = 60 * 60 * 24 * 365;
 export async function getCurrentGuest(): Promise<Guest | null> {
   // Not cached: one primary-key read, and it must agree with what Server
   // Actions see (a cached Guest could outlive a database reset).
-  return guests.findGuest((await cookies()).get(GUEST_COOKIE)?.value);
+  const id = (await cookies()).get(GUEST_COOKIE)?.value;
+  // Cookies are available while prerendering, but opening a database
+  // connection draws a random SCRAM nonce, which Next refuses there.
+  await connection();
+  return guests.findGuest(id);
 }
 
 /**
