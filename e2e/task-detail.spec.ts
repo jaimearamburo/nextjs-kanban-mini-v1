@@ -35,7 +35,6 @@ async function expectSeededTask(detail: ReturnType<Page["getByRole"]>) {
   await expect(detail.getByRole("button", { name: "Bug", pressed: true })).toBeVisible();
   await expect(detail.getByRole("button", { name: "Frontend", pressed: true })).toBeVisible();
   await expect(detail.getByRole("region", { name: "Comments" })).toBeVisible();
-  await expect(detail.getByRole("region", { name: "Activity" })).toBeVisible();
 }
 
 test("clicking a card opens the Task in a modal over the Board and changes the URL", async ({
@@ -86,65 +85,38 @@ test("the Task opens instantly from a card, with no wait on the server", async (
   });
 });
 
-test("the Task opens as a side panel below the header, covering three quarters of the width", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 1280, height: 800 });
-  await openBoard(page);
-  const header = await page.getByRole("banner").boundingBox();
-
-  await cardLink(page, TITLE).click();
-
-  const panel = page.getByRole("dialog", { name: TITLE });
-  await expect(panel).toBeVisible();
-  // Wait for the slide-in to finish before measuring.
-  await expect(async () => {
-    const box = (await panel.boundingBox())!;
-    expect(box.x + box.width).toBe(1280);
-    expect(box.width).toBe(960);
-    expect(box.y).toBe(header!.y + header!.height);
-    expect(box.y + box.height).toBe(800);
-  }).toPass();
-  // The Board behind is dimmed and very lightly blurred.
-  await expect(page.locator(".fixed[role=presentation]")).toHaveCSS(
-    "backdrop-filter",
-    "blur(2px)",
-  );
-  // The panel scrolls on its own; the Board behind it doesn't move.
-  expect(await panel.evaluate((el) => getComputedStyle(el).overflowY)).toBe("auto");
-});
-
-for (const { width, layout } of [
-  { width: 1600, layout: "beside the Task" },
-  { width: 900, layout: "under Comments" },
+for (const { viewport, width } of [
+  // Three quarters of the screen...
+  { viewport: 900, width: 675 },
+  // ...capped at 48rem, so the single column doesn't run too wide.
+  { viewport: 1280, width: 768 },
 ] as const) {
-  test(`at ${width}px wide, Activity shows ${layout}`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 900 });
+  test(`at ${viewport}px wide, the Task opens as a ${width}px side panel below the header`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: viewport, height: 800 });
     await openBoard(page);
+    const header = await page.getByRole("banner").boundingBox();
 
     await cardLink(page, TITLE).click();
 
     const panel = page.getByRole("dialog", { name: TITLE });
-    const comments = panel.getByRole("region", { name: "Comments" });
-    const activity = panel.getByRole("region", { name: "Activity" });
-    await expect(activity).toBeVisible();
+    await expect(panel).toBeVisible();
+    // Wait for the slide-in to finish before measuring.
     await expect(async () => {
-      const c = (await comments.boundingBox())!;
-      const a = (await activity.boundingBox())!;
-      if (layout === "beside the Task") {
-        expect(a.x).toBeGreaterThanOrEqual(c.x + c.width);
-        expect(a.y).toBeLessThan(c.y);
-        // Its divider runs the panel's full height, from just under the
-        // header to the bottom edge.
-        const p = (await panel.boundingBox())!;
-        const column = (await activity.locator("..").boundingBox())!;
-        expect(column.y).toBe(p.y);
-        expect(column.y + column.height).toBe(p.y + p.height);
-      } else {
-        expect(a.x).toBe(c.x);
-        expect(a.y).toBeGreaterThanOrEqual(c.y + c.height);
-      }
+      const box = (await panel.boundingBox())!;
+      expect(box.x + box.width).toBe(viewport);
+      expect(box.width).toBe(width);
+      expect(box.y).toBe(header!.y + header!.height);
+      expect(box.y + box.height).toBe(800);
     }).toPass();
+    // The Board behind is dimmed and very lightly blurred.
+    await expect(page.locator(".fixed[role=presentation]")).toHaveCSS(
+      "backdrop-filter",
+      "blur(2px)",
+    );
+    // The panel scrolls on its own; the Board behind it doesn't move.
+    expect(await panel.evaluate((el) => getComputedStyle(el).overflowY)).toBe("auto");
   });
 }
 

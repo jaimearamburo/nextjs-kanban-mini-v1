@@ -190,7 +190,7 @@ export function createBoard(
     /**
      * Sets a Task's Priority to the final value given, never "cycle"
      * (ADR-0004), so concurrent identical clicks are idempotent. Like every
-     * write, it takes the acting Guest, whom Activity will name (#12).
+     * write, it takes the acting Guest: Guests perform all actions.
      */
     async setPriority(guest: Guest, input: unknown): Promise<WriteResult> {
       const parsed = setPriorityInput.safeParse(input);
@@ -256,8 +256,7 @@ export function createBoard(
     /**
      * Moves a Task to a Status, between the two cards it was dropped
      * between. Only the moved Task is written: it gets a fractional Rank
-     * between its neighbours' (ADR-0001). A Status change will record
-     * Activity once Activity lands (#12); a reorder within a Status won't.
+     * between its neighbours' (ADR-0001).
      */
     async moveTask(guest: Guest, input: unknown): Promise<WriteResult> {
       const parsed = moveTaskInput.safeParse(input);
@@ -298,8 +297,7 @@ export function createBoard(
     },
     /**
      * Creates a Task at the top of its Status. A refusal names each field
-     * at fault, for the form to show inline. It will record Activity once
-     * Activity lands (#12).
+     * at fault, for the form to show inline.
      */
     async createTask(guest: Guest, input: unknown): Promise<CreateTaskResult> {
       const parsed = createTaskInput.safeParse(input);

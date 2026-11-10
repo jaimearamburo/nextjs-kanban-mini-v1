@@ -51,10 +51,6 @@ The Team Member a Task is assigned to, if any.
 A Guest's message on a Task. Any Guest can delete any Comment.
 _Avoid_: Note, reply
 
-**Activity**:
-A record of a meaningful change to a Task (a field change, or a Comment added or deleted) and the Guest who made it. Reordering a Task within its Status is not Activity.
-_Avoid_: History, log, event
-
 **Archived Comment**:
 A deleted Comment. It disappears from the Task but is kept.
 _Avoid_: Deleted comment

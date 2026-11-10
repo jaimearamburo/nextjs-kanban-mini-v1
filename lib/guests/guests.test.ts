@@ -76,12 +76,12 @@ describe("createGuest", () => {
 });
 
 describe("rerollGuest", () => {
-  // Arrange-only fixtures: the Guests module has no Comment or Activity writes.
+  // Arrange-only fixtures: the Guests module has no Comment writes.
   async function givenTask() {
     return testDb.task.create({ data: { title: "A Task", rank: "a0" } });
   }
 
-  test("renames a Guest with nothing attributed to it in place, so mashing re-roll adds no rows", async () => {
+  test("renames a Guest with no Comments in place, so mashing re-roll adds no rows", async () => {
     // The first draws repeat "Curious Otter"; the redraw must move on.
     const draws = [0, 0, 0, 0, 0, 0, 0.5, 0.5, 0.5];
     let i = 0;
@@ -107,19 +107,6 @@ describe("rerollGuest", () => {
 
     expect(next.id).not.toBe(current.id);
     expect(next.name).not.toBe(current.name);
-    expect(await guests.findGuest(current.id)).toEqual(current);
-  });
-
-  test("keeps a Guest with Activity, and gives a new Guest", async () => {
-    const current = await guests.createGuest();
-    const task = await givenTask();
-    await testDb.activity.create({
-      data: { taskId: task.id, guestId: current.id, kind: "TASK_CREATED" },
-    });
-
-    const next = await guests.rerollGuest(current.id);
-
-    expect(next.id).not.toBe(current.id);
     expect(await guests.findGuest(current.id)).toEqual(current);
   });
 

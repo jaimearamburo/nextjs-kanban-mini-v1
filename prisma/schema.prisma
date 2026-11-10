@@ -28,18 +28,6 @@ enum Priority {
   URGENT
 }
 
-enum ActivityKind {
-  TASK_CREATED
-  STATUS_CHANGED
-  PRIORITY_CHANGED
-  ASSIGNEE_CHANGED
-  LABELS_CHANGED
-  TITLE_CHANGED
-  DESCRIPTION_CHANGED
-  COMMENT_ADDED
-  COMMENT_ARCHIVED
-}
-
 model Task {
   id          String      @id @default(uuid(7)) @db.Uuid
   title       String      @db.VarChar(120)
@@ -53,7 +41,6 @@ model Task {
   assignee    TeamMember? @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
   labels      Label[]
   comments    Comment[]
-  activities  Activity[]
   /// Archived Tasks are kept but never shown on the Board (ADR-0002).
   archivedAt  DateTime?
   createdAt   DateTime    @default(now())
@@ -82,13 +69,12 @@ model TeamMember {
 }
 
 model Guest {
-  id         String     @id @default(uuid(7)) @db.Uuid
-  name       String
+  id        String    @id @default(uuid(7)) @db.Uuid
+  name      String
   /// Colour token for the avatar, mapped to a palette in the UI.
-  color      String
-  createdAt  DateTime   @default(now())
-  comments   Comment[]
-  activities Activity[]
+  color     String
+  createdAt DateTime  @default(now())
+  comments  Comment[]
 }
 
 /// Written by a Guest, or by a Team Member for seed data. Exactly one author
@@ -105,21 +91,6 @@ model Comment {
   /// Archived Comments disappear from the Task but are kept (ADR-0002).
   archivedAt         DateTime?
   createdAt          DateTime    @default(now())
-
-  @@index([taskId, createdAt])
-}
-
-/// Append-only record of a meaningful change to a Task.
-model Activity {
-  id        String       @id @default(uuid(7)) @db.Uuid
-  taskId    String       @db.Uuid
-  task      Task         @relation(fields: [taskId], references: [id], onDelete: Restrict)
-  guestId   String       @db.Uuid
-  guest     Guest        @relation(fields: [guestId], references: [id], onDelete: Restrict)
-  kind      ActivityKind
-  from      Json?
-  to        Json?
-  createdAt DateTime     @default(now())
 
   @@index([taskId, createdAt])
 }
