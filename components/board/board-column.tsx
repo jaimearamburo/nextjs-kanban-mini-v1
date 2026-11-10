@@ -38,9 +38,13 @@ export function BoardColumn({
           aria-label={`Create a Task in ${STATUS_NAMES[status]}`}
           title={`Create a Task in ${STATUS_NAMES[status]}`}
           // -my-1 keeps the header's height: the circle is taller than the text.
-          className="-my-1 ml-auto flex size-6 items-center justify-center rounded-full border border-border bg-background/60 text-muted-foreground outline-none hover:bg-background hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 dark:bg-background/30 dark:hover:bg-background/60 pointer-coarse:-my-2 pointer-coarse:size-10"
+          // On touch the link is a 40px tap target around the same small
+          // circle, its negative margins keeping the header as it is.
+          className="group/create -my-1 ml-auto flex size-6 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring/50 pointer-coarse:-my-2 pointer-coarse:-mr-2 pointer-coarse:size-10"
         >
-          <PlusIcon className="size-3.5" aria-hidden />
+          <span className="flex size-6 items-center justify-center rounded-full border border-border bg-background/60 text-muted-foreground group-hover/create:bg-background group-hover/create:text-foreground dark:bg-background/30 dark:group-hover/create:bg-background/60">
+            <PlusIcon className="size-3.5" aria-hidden />
+          </span>
         </Link>
       </header>
       <div className="relative flex flex-col gap-2 px-2 pb-2">

@@ -24,6 +24,13 @@ async function expectTouchSized(control: Locator) {
   expect.soft(box.width, "width").toBeGreaterThanOrEqual(MIN_TARGET);
 }
 
+/** The page is no wider than the phone: anything wider shows as a blank gap once iOS zooms. */
+async function expectNoSidewaysPage(page: Page) {
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth),
+  ).toBe(0);
+}
+
 /** At least 16px, so iOS Safari doesn't zoom the page on focus. */
 async function expectNoFocusZoom(field: Locator) {
   expect.soft(await fontSize(field), "font size").toBeGreaterThanOrEqual(16);
@@ -36,6 +43,16 @@ async function openBoard(page: Page) {
 
 test.describe("on a phone", () => {
   test.use(phone);
+
+  test("the page never scrolls sideways; only the Board does", async ({ page }) => {
+    await openBoard(page);
+    await expect(page.getByRole("article").first()).toBeVisible();
+    await expectNoSidewaysPage(page);
+
+    await page.goto("/tasks/new");
+    await expect(page.getByRole("button", { name: "Create Task" })).toBeVisible();
+    await expectNoSidewaysPage(page);
+  });
 
   test("the header's bigger controls still fit on a small phone", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
@@ -59,7 +76,10 @@ test.describe("on a phone", () => {
     await expectTouchSized(page.getByRole("group", { name: "Theme" }).getByRole("button").first());
     await expectTouchSized(page.getByRole("button", { name: /^Demo controls/ }));
     await expectTouchSized(page.getByRole("button", { name: "New identity" }));
-    await expectTouchSized(page.getByRole("link", { name: "Create a Task in To Do" }));
+    // A small circle to look at, inside a bigger area to tap.
+    const create = page.getByRole("link", { name: "Create a Task in To Do" });
+    await expectTouchSized(create);
+    expect((await size(create.locator("span"))).height).toBe(24);
 
     const card = page.getByRole("article", { name: "Fractional Rank for moves" });
     await expectTouchSized(card.getByRole("button", { name: /^Priority: / }));
