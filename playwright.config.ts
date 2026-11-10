@@ -19,7 +19,7 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      testIgnore: /(drag-and-drop|task-edit)\.spec\.ts/,
+      testIgnore: /(drag-and-drop|task-edit|create-task)\.spec\.ts/,
     },
     // Moves rearrange the seeded Board other specs read, so they run after them.
     {
@@ -34,6 +34,13 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
       testMatch: /task-edit\.spec\.ts/,
       dependencies: ["chromium-moves"],
+    },
+    // Creates add Tasks to the seeded Board other specs count, so they run after all of them.
+    {
+      name: "chromium-creates",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: /create-task\.spec\.ts/,
+      dependencies: ["chromium-edits"],
     },
   ],
   // A production build against the disposable `test` database, freshly seeded.

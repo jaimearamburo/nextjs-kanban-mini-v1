@@ -26,6 +26,7 @@ import type { BoardTask } from "@/lib/board/domain";
 import { cn } from "@/lib/utils";
 import { BoardColumn } from "./board-column";
 import { BoardLayout } from "./board-layout";
+import { useCreatedTasks, withCreated } from "./created-tasks";
 import { DropLine, type DropEdge } from "./drop-line";
 import {
   applyMove,
@@ -34,6 +35,7 @@ import {
   moveFor,
   otherTasks,
   type ClientStatusTasks,
+  type ClientTask,
   type DropSlot,
 } from "./move";
 import { TaskCard } from "./task-card";
@@ -113,7 +115,9 @@ export function DraggableBoard({
   statuses,
   ...props
 }: { statuses: ClientStatusTasks[] } & Omit<ComponentProps<typeof BoardLayout>, "children">) {
-  const [optimisticStatuses, applyOptimisticMove] = useOptimistic(statuses, applyMove);
+  const { created } = useCreatedTasks();
+  const shownStatuses = useMemo(() => withCreated(statuses, created), [statuses, created]);
+  const [optimisticStatuses, applyOptimisticMove] = useOptimistic(shownStatuses, applyMove);
   const boardRef = useRef<HTMLDivElement>(null);
   // The dragged card, set once it has actually moved: the overlay and the
   // faded original appear on the first pixel, never for a plain click.
@@ -267,7 +271,7 @@ export function DraggableBoard({
                   key={task.id}
                   task={task}
                   dimmed={task.id === active?.id}
-                  data-pending={task.moving || undefined}
+                  data-pending={task.moving || task.creating || undefined}
                   dropEdge={
                     task.id === lineAbove ? "top" : task.id === lineBelow ? "bottom" : undefined
                   }
@@ -297,11 +301,14 @@ const DraggableTaskCard = memo(function DraggableTaskCard({
   dropEdge,
   dimmed,
   ...props
-}: { task: BoardTask; dropEdge?: DropEdge; dimmed: boolean } & ComponentProps<"article">) {
+}: { task: ClientTask; dropEdge?: DropEdge; dimmed: boolean } & ComponentProps<"article">) {
   // isDragging and the transform go unused: the overlay is what moves, and
   // the original fades only once it has (`dimmed`).
+  const creating = task.creating === true;
   const { setNodeRef, setActivatorNodeRef, attributes, listeners } = useDraggable({
     id: task.id,
+    // A Task not saved yet has no id the server knows, so it can't move.
+    disabled: creating,
     // Still an article to assistive tech; the whole card is the handle.
     attributes: { role: "article", roleDescription: "draggable Task" },
   });
@@ -321,9 +328,12 @@ const DraggableTaskCard = memo(function DraggableTaskCard({
       {...props}
       {...attributes}
       {...listeners}
+      // Nor can it be opened or changed: its link and Priority wait for the save.
+      inert={creating || undefined}
       className={cn(
         "cursor-grab outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
         dimmed && "opacity-40",
+        creating && "animate-pulse cursor-default opacity-60",
       )}
     />
   );
