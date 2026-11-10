@@ -140,5 +140,10 @@ export const boardFilter = z
 
 export type BoardFilter = z.output<typeof boardFilter>;
 
+/** Whether a filter narrows the Board at all: a text search or any Label. */
+export function isFiltered(filter: BoardFilter): boolean {
+  return filter.q !== "" || filter.labels.length > 0;
+}
+
 /** A drop, as the client sends it and the Board module takes it. */
 export type MoveTaskInput = z.output<typeof moveTaskInput>;

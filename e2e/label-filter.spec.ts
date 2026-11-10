@@ -114,6 +114,23 @@ test("search combines with the Label Filter, and typing adds no history entries"
   await expectCards(page, [MODAL_BUG]);
 });
 
+test("a search that matches nothing says so, and the message goes once Tasks match again", async ({
+  page,
+}) => {
+  await openBoard(page, "/?labels=bug");
+  const empty = page.getByRole("status").filter({ hasText: "No Tasks match" });
+  await expect(empty).toHaveCount(0);
+
+  await search(page).fill("no such task anywhere");
+
+  await expect(empty).toBeVisible();
+  await expectCards(page, []);
+
+  await search(page).fill("modal");
+  await expectCards(page, [MODAL_BUG]);
+  await expect(empty).toHaveCount(0);
+});
+
 test("a burst of typing sends one search to the server, after the pause", async ({ page }) => {
   await openBoard(page);
   const searches: string[] = [];

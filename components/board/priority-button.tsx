@@ -50,7 +50,7 @@ export function PriorityButton({
       title={`Priority: ${name}. Click to change.`}
       data-pending={isPending || undefined}
       className={cn(
-        "group/priority inline-flex cursor-pointer items-center justify-center rounded-sm outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/50 data-pending:animate-pulse",
+        "group/priority inline-flex cursor-pointer items-center justify-center rounded-sm outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring data-pending:animate-pulse",
         showName ? "h-8 gap-1.5 px-2 pointer-coarse:h-10" : "size-6",
         // On a card, a 40px tap target that doesn't make the card taller.
         !showName && "pointer-coarse:-m-2 pointer-coarse:size-10",

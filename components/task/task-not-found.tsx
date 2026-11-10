@@ -10,7 +10,7 @@ export function TaskNotFound({ view }: { view: TaskView }) {
         Task not found
       </TaskHeading>
       <p className="max-w-sm text-sm text-muted-foreground">
-        This Task doesn&apos;t exist, or it has been archived.
+        This Task doesn&apos;t exist.
       </p>
     </div>
   );

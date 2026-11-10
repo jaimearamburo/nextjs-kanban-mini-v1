@@ -21,7 +21,7 @@ export function MoveToMenu({
       <Menu.Trigger
         aria-label="Move to…"
         // A 40px tap target that doesn't make the card taller.
-        className="-mt-2.5 -mr-2.5 hidden size-10 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/50 data-popup-open:bg-accent pointer-coarse:inline-flex"
+        className="-mt-2.5 -mr-2.5 hidden size-10 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring data-popup-open:bg-accent pointer-coarse:inline-flex"
       >
         <EllipsisVerticalIcon aria-hidden className="size-4" />
       </Menu.Trigger>

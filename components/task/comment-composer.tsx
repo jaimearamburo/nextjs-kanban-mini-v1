@@ -66,7 +66,7 @@ export function CommentComposer({
           onChange={(event) => setBody(event.target.value)}
           maxLength={COMMENT_MAX_LENGTH}
           rows={2}
-          className="w-full resize-y rounded-md border border-input bg-background px-2 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50 pointer-coarse:text-lg"
+          className="w-full resize-y rounded-md border border-input bg-background px-2 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:text-lg"
         />
         <Button
           type="submit"

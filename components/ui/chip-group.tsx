@@ -59,7 +59,7 @@ export function ChipGroup({
             aria-pressed={selected}
             onClick={() => toggle(item.value)}
             className={cn(
-              "inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-full px-3 text-xs font-medium ring-1 transition-colors outline-none ring-inset focus-visible:ring-2 focus-visible:ring-ring/50 pointer-coarse:h-10 pointer-coarse:px-4 pointer-coarse:text-sm",
+              "inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-full px-3 text-xs font-medium ring-1 transition-colors outline-none ring-inset focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:h-10 pointer-coarse:px-4 pointer-coarse:text-sm",
               selected
                 ? (item.selectedClassName ??
                     "bg-primary text-primary-foreground ring-primary")

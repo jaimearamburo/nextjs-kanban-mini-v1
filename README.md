@@ -9,12 +9,22 @@ A single, public, login-free kanban **Board**, inspired by Jira, built to show w
 - **Drag and drop** between and within columns, with a Jira-style drop line showing where a card will land. Moves land instantly and roll back with a toast if saving fails.
 - **Task detail** opens as a modal while the URL changes, like GitHub Projects. Priority, Status, Assignee and Labels each save on their own, optimistically, and **Comments** can be added and archived.
 - **Label Filter** pills, kept in the URL so a filtered view can be shared.
-- **Phones:** one column at a time with Status pills and swiping, long-press dragging, a "Move to…" menu, and Tasks opening as a full-screen sheet.
+- **Text search** over Task titles and descriptions, alongside the Label Filter and also kept in the URL.
+- **Phones:** the Board scrolls sideways and settles with a column at its left edge. Cards drag with a long press or move with a "Move to…" menu, and Tasks open as a full-screen sheet.
 - **Demo controls** let a viewer add latency or force failures, so they can watch pending states, optimistic updates and rollbacks happen. They affect only that viewer's browser.
 - Light, dark and system themes.
-- Nothing is destroyed: Tasks and Comments are archived, never deleted.
+- Deleting a Comment archives it: it disappears from the Task but stays in the database.
 
 The domain language (Board, Task, Rank, Guest, …) is defined in [`GLOSSARY.md`](GLOSSARY.md), and the key decisions are recorded in [`docs/adr/`](docs/adr/).
+
+## Lighthouse
+
+The Board, measured on 10 November 2026 with Lighthouse 12.8.
+
+| | Performance | Accessibility | CLS |
+|---|---|---|---|
+| Mobile | 90 | 100 | 0 |
+| Desktop | 99 | 100 | 0 |
 
 ## Environments
 
