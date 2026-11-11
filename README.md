@@ -1,21 +1,65 @@
 # Kanban Mini
 
-A single, public, login-free kanban **Board**, inspired by Jira, built to show what Next.js 16 and React 19 can do end to end: Server Components with streaming, Server Actions, optimistic updates, transitions, caching and invalidation, and intercepting routes.
+[![CI](https://github.com/jaimearamburo/nextjs-kanban-mini-v1/actions/workflows/ci.yml/badge.svg)](https://github.com/jaimearamburo/nextjs-kanban-mini-v1/actions/workflows/ci.yml)
 
-## What the demo shows
+A shared, login-free kanban **Board**, inspired by Jira, built to show what Next.js 16 and React 19 can do end to end: Server Components with streaming, Server Actions, optimistic updates, transitions, caching and intercepting routes.
 
-- **No sign-up.** Every visitor is a **Guest** with a generated name such as "Curious Otter", remembered per browser, and everyone works on the same Board.
-- **Tasks** move through four fixed **Statuses** (To Do, In Progress, In Review, Done), shown as columns.
-- **Drag and drop** between and within columns, with a Jira-style drop line showing where a card will land. Moves land instantly and roll back with a toast if saving fails.
-- **Task detail** opens as a modal while the URL changes, like GitHub Projects. Priority, Status, Assignee and Labels each save on their own, optimistically, and **Comments** can be added and archived.
-- **Label Filter** pills, kept in the URL so a filtered view can be shared.
-- **Text search** over Task titles and descriptions, alongside the Label Filter and also kept in the URL.
-- **Phones:** the Board scrolls sideways and settles with a column at its left edge. Cards drag with a long press or move with a "Move to…" menu, and Tasks open as a full-screen sheet.
-- **Demo controls** let a viewer add latency or force failures, so they can watch pending states, optimistic updates and rollbacks happen. They affect only that viewer's browser.
+**Live Demo:** [kanban.jaimearamburo.dev](https://kanban.jaimearamburo.dev). There's no sign-up: open it and start dragging. Use **Demo controls** in the header to add latency or force failures, and watch the pending states and rollbacks happen.
+
+## Features
+
+- **No sign-up.** Every visitor is a **Guest** with a generated name such as "Curious Otter", and everyone works on the same Board.
+- **Drag and drop** across four Statuses, with a Jira-style drop line showing where a card will land.
+- **Task detail** in a modal with its own URL (NextJS intercepted routes). Priority, Status, Assignee and Labels each save on their own, and Comments can be added and archived.
+- **Label Filter and text search**, both kept in the URL so a filtered view can be shared.
+- **Mobiles:** long-press to drag, a "Move to…" menu, and Tasks open as a full-screen sheet.
+- **Demo controls** add 1s or 3s of latency, or random or forced failures, for the viewer's browser only.
 - Light, dark and system themes.
-- Deleting a Comment archives it: it disappears from the Task but stays in the database.
 
-The domain language (Board, Task, Rank, Guest, …) is defined in [`GLOSSARY.md`](GLOSSARY.md), and the key decisions are recorded in [`docs/adr/`](docs/adr/).
+## Async React patterns
+
+Everything below is built with React and Next.js primitives, without a client state library.
+
+| Where | What happens | How |
+|---|---|---|
+| Board load | The page shell paints at once, and the toolbar and Board stream in behind skeletons | Partial Prerendering (`cacheComponents`) + `<Suspense>` boundaries |
+| Drag and drop | The card lands instantly and rolls back with a toast if the save fails | `useOptimistic` with a reducer + `startTransition`; a Server Action works out the new Rank from the neighbouring Tasks |
+| Create Task | The new card appears on the Board while it saves, and the modal closes with the saved Task in one step | `useActionState` + an optimistic list shared from the root layout + `startTransition` after the `await` |
+| Task detail | Opens as a modal with its own URL, or as a full page on reload, and opens instantly from a hovered card | Intercepting and parallel routes (`@modal/(.)tasks/[id]`) + `"use cache"` / `cacheTag` + `<Link prefetch>` on hover and focus |
+| Task fields | Priority, Status, Assignee and Labels change instantly and dim while saving | `useOptimistic` + `useTransition` + `data-pending` |
+| Label Filter | The pill highlights instantly while the Board dims until the filtered results arrive | `useOptimistic` + `useTransition`, with `data-pending` styled from an ancestor (`group-has-[[data-pending]]`) |
+| Comments | A new Comment appears immediately, and a deleted one fades out before it's gone | `useOptimistic` list + `has-data-pending:` CSS |
+| After a write | Only what changed is re-read | `updateTag` for the Task + `refresh()` |
+
+## Design decisions
+
+| Decision | Why |
+|---|---|
+| [Fractional Rank for ordering](docs/adr/0001-fractional-rank-for-task-ordering.md) | A move rewrites only the moved Task, never its neighbours, so concurrent moves don't conflict |
+| [Nothing is hard-deleted](docs/adr/0002-nothing-is-hard-deleted.md) | The Board is public, so no visitor can destroy content: deleted Comments are archived |
+| [dnd-kit with a hand-built drop line](docs/adr/0003-dnd-kit-with-custom-drop-indicator.md) | Native drag and drop (and libraries built on it) is unreliable on touch screens |
+| [Last write wins, per field](docs/adr/0004-last-write-wins-per-field-no-locks.md) | Every change sends the final value ("set High"), not an instruction ("cycle priority"), so fast repeated clicks don't race, with no locks needed |
+| [No live sync](docs/adr/0005-realtime-events-are-invalidation-signals.md) | Built with Ably, then removed: a third-party service and an event on every write was more than a small demo Board needed |
+| [Isolated environments, any Postgres](docs/adr/0006-environment-isolation-and-provider-agnostic-database.md) | Dev, tests and CI can't reach production, and the database provider can change without code changes |
+| [Unsigned Guest cookie](docs/adr/0007-unsigned-guest-cookie.md) | A Guest is a label, not an account, so signing the cookie would protect nothing |
+
+## Testing
+
+| Type | Tool | What it covers |
+|---|---|---|
+| Integration | Vitest + Postgres | The Board module against a real database: moves and Ranks, creating and editing Tasks, archiving Comments, Guests, demo controls |
+| End to end | Playwright | Mouse and touch drag and drop, modal routes, filters and search, optimistic rollbacks, phones, themes, accessibility (axe, WCAG 2 AA) |
+| CI | GitHub Actions | Lint, type check, build and both suites on every pull request, against a throwaway Postgres container. Merging to `main` requires them to pass |
+
+## How AI Coding Agents were used in this project
+
+This project was built with an AI coding agent. I own the planning and the decisions. The agent implements one task at a time, and every change goes through me.
+
+1. **Plan.** I write the spec: the requirements, the desired behaviour and the stack.
+2. **Slice.** I break the spec into small vertical slices, each one working end to end on its own, and turn them into GitHub issues with acceptance criteria.
+3. **Delegate.** I hand one issue at a time to the coding agent.
+4. **Build together.** I work with the agent until the issue is done, tests included.
+5. **Review and merge.** I review the code, open a pull request, and merge it into `main` once CI passes.
 
 ## Lighthouse
 
