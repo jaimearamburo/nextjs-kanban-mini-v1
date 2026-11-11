@@ -4,7 +4,7 @@
 
 A shared, login-free kanban **Board**, inspired by Jira, built to show what Next.js 16 and React 19 can do end to end: Server Components with streaming, Server Actions, optimistic updates, transitions, caching and intercepting routes.
 
-**Live Demo:** [kanban.jaimearamburo.dev](https://kanban.jaimearamburo.dev). There's no sign-up: open it and start dragging. Use **Demo controls** in the header to add latency or force failures, and watch the pending states and rollbacks happen.
+**[Live Demo](https://kanban.jaimearamburo.dev/)** - There's no sign-up: open it and start dragging. Use **Demo controls** in the header to add latency or force failures, and watch the pending states and rollbacks happen.
 
 ## Features
 
